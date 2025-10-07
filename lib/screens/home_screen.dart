@@ -3,6 +3,7 @@ import '../services/supabase_service.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
+import '../widgets/app_drawer.dart';
 import '../routes.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -31,6 +32,75 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _handleLogout() async {
+    try {
+      await SupabaseService.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Erro ao sair: ${e.toString().replaceFirst('Exception: ', '')}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleSendMessage(String content) async {
+    try {
+      await SupabaseService.sendMessage(content);
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    e.toString().replaceFirst('Exception: ', ''),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.red.shade900,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade50,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = SupabaseService.currentUser;
@@ -40,6 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF075E54),
         elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         title: Row(
           children: [
             CircleAvatar(
@@ -53,66 +129,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Chat Geral',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    'online',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
-                  ),
-                ],
+              child: Text(
+                'Chat Geral',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: Colors.white),
-            onSelected: (value) async {
-              if (value == 'logout') {
-                await SupabaseService.signOut();
-                if (mounted) {
-                  Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-                }
-              }
+          IconButton(
+            icon: Icon(Icons.search, color: Colors.white),
+            onPressed: () {
+              // TODO: Implement search functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Busca em desenvolvimento'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person, size: 20),
-                    const SizedBox(width: 12),
-                    Text(userName),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20, color: Colors.red),
-                    const SizedBox(width: 12),
-                    Text('Sair', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),
+      drawer: AppDrawer(),
       body: Container(
         decoration: BoxDecoration(
           color: const Color(0xFFECE5DD),
@@ -131,23 +174,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 stream: SupabaseService.getMessagesStream(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
+                    final errorMessage = snapshot.error.toString().replaceFirst('Exception: ', '');
                     return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline, size: 48, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Erro ao carregar mensagens',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${snapshot.error}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Erro ao carregar mensagens',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Text(
+                                errorMessage,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.red.shade900,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {});
+                              },
+                              icon: Icon(Icons.refresh),
+                              label: Text('Tentar novamente'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF075E54),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
@@ -252,10 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             MessageInput(
-              onSendMessage: (content) async {
-                await SupabaseService.sendMessage(content);
-                _scrollToBottom();
-              },
+              onSendMessage: _handleSendMessage,
             ),
           ],
         ),

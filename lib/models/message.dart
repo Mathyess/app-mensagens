@@ -5,6 +5,8 @@ class Message {
   final String senderName;
   final DateTime createdAt;
   final String? imageUrl;
+  final bool isFavorite;
+  final bool isArchived;
 
   Message({
     required this.id,
@@ -13,6 +15,8 @@ class Message {
     required this.senderName,
     required this.createdAt,
     this.imageUrl,
+    this.isFavorite = false,
+    this.isArchived = false,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class Message {
       senderName: json['sender_name'],
       createdAt: DateTime.parse(json['created_at']),
       imageUrl: json['image_url'],
+      isFavorite: json['is_favorite'] ?? false,
+      isArchived: json['is_archived'] ?? false,
     );
   }
 
@@ -34,6 +40,30 @@ class Message {
       'sender_name': senderName,
       'created_at': createdAt.toIso8601String(),
       'image_url': imageUrl,
+      'is_favorite': isFavorite,
+      'is_archived': isArchived,
     };
+  }
+
+  Message copyWith({
+    String? id,
+    String? content,
+    String? senderId,
+    String? senderName,
+    DateTime? createdAt,
+    String? imageUrl,
+    bool? isFavorite,
+    bool? isArchived,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      senderId: senderId ?? this.senderId,
+      senderName: senderName ?? this.senderName,
+      createdAt: createdAt ?? this.createdAt,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isFavorite: isFavorite ?? this.isFavorite,
+      isArchived: isArchived ?? this.isArchived,
+    );
   }
 }

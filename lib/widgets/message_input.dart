@@ -71,12 +71,6 @@ class _MessageInputState extends State<MessageInput> {
                 ),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.emoji_emotions_outlined, color: Colors.grey[600]),
-                      onPressed: () {
-                        // TODO: Implement emoji picker
-                      },
-                    ),
                     Expanded(
                       child: TextField(
                         controller: _textController,
@@ -86,7 +80,7 @@ class _MessageInputState extends State<MessageInput> {
                           hintStyle: TextStyle(color: Colors.grey[500]),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                            horizontal: 16,
                             vertical: 10,
                           ),
                         ),
@@ -94,12 +88,6 @@ class _MessageInputState extends State<MessageInput> {
                         textCapitalization: TextCapitalization.sentences,
                         onSubmitted: (_) => _sendMessage(),
                       ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.attach_file, color: Colors.grey[600]),
-                      onPressed: () {
-                        // TODO: Implement file attachment
-                      },
                     ),
                   ],
                 ),
@@ -113,12 +101,10 @@ class _MessageInputState extends State<MessageInput> {
               ),
               child: IconButton(
                 icon: Icon(
-                  _hasText ? Icons.send : Icons.mic,
+                  Icons.send,
                   color: Colors.white,
                 ),
-                onPressed: _hasText ? _sendMessage : () {
-                  // TODO: Implement voice message
-                },
+                onPressed: _hasText ? _sendMessage : null,
               ),
             ),
           ],

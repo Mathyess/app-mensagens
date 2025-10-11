@@ -149,107 +149,147 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         mainAxisAlignment: widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!widget.isMe) const SizedBox(width: 8),
+          if (!widget.isMe) ...[
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    _getColorFromName(widget.message.senderName),
+                    _getColorFromName(widget.message.senderName).withOpacity(0.7),
+                  ],
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  widget.message.senderName.isNotEmpty 
+                      ? widget.message.senderName[0].toUpperCase() 
+                      : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           Flexible(
             child: GestureDetector(
               onLongPress: _showMessageOptions,
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  maxWidth: MediaQuery.of(context).size.width * 0.7,
                 ),
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: widget.isMe
-                      ? (isDark ? const Color(0xFF005C4B) : const Color(0xFFDCF8C6))
-                      : (isDark ? const Color(0xFF1F2C34) : Colors.white),
+                  gradient: widget.isMe
+                      ? const LinearGradient(
+                          colors: [
+                            Color(0xFF6366F1),
+                            Color(0xFF8B5CF6),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: widget.isMe ? null : Colors.white,
                   borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(12),
-                    topRight: const Radius.circular(12),
-                    bottomLeft: Radius.circular(widget.isMe ? 12 : 0),
-                    bottomRight: Radius.circular(widget.isMe ? 0 : 12),
+                    topLeft: const Radius.circular(20),
+                    topRight: const Radius.circular(20),
+                    bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
+                    bottomRight: Radius.circular(widget.isMe ? 4 : 20),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+                      color: widget.isMe 
+                          ? const Color(0xFF6366F1).withOpacity(0.2)
+                          : Colors.black.withOpacity(0.05),
+                      blurRadius: widget.isMe ? 8 : 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!widget.isMe)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          widget.message.senderName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: _getColorFromName(widget.message.senderName),
-                          ),
-                        ),
-                      ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!widget.isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: Text(
-                            widget.message.content,
+                            widget.message.senderName,
                             style: TextStyle(
-                              fontSize: 15,
-                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _getColorFromName(widget.message.senderName),
                             ),
                           ),
                         ),
-                        if (widget.message.isFavorite) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.star,
-                            size: 14,
-                            color: Colors.amber,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.message.content,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: widget.isMe ? Colors.white : const Color(0xFF374151),
+                                height: 1.4,
+                              ),
+                            ),
                           ),
+                          if (widget.message.isFavorite) ...[
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: widget.isMe ? Colors.white.withOpacity(0.8) : Colors.amber,
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          _formatTime(widget.message.createdAt),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatTime(widget.message.createdAt),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: widget.isMe 
+                                  ? Colors.white.withOpacity(0.7)
+                                  : const Color(0xFF9CA3AF),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        if (widget.isMe) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.done_all,
-                            size: 16,
-                            color: Colors.blue[400],
-                          ),
+                          if (widget.isMe) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.done_all_rounded,
+                              size: 16,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          if (widget.isMe) const SizedBox(width: 8),
+          if (widget.isMe) const SizedBox(width: 48),
         ],
       ),
     );

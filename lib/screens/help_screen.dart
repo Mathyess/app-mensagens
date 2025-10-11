@@ -5,8 +5,6 @@ class HelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Central de Ajuda'),
@@ -21,7 +19,6 @@ class HelpScreen extends StatelessWidget {
             title: 'Como enviar mensagens?',
             description:
                 'Digite sua mensagem no campo de texto na parte inferior da tela e toque no botão de enviar. Suas mensagens aparecerão em verde à direita.',
-            isDark: isDark,
           ),
           const SizedBox(height: 16),
           _buildHelpSection(
@@ -30,7 +27,6 @@ class HelpScreen extends StatelessWidget {
             title: 'Como favoritar mensagens?',
             description:
                 'Pressione e segure qualquer mensagem para abrir o menu de opções. Selecione "Adicionar aos favoritos" para salvar mensagens importantes.',
-            isDark: isDark,
           ),
           const SizedBox(height: 16),
           _buildHelpSection(
@@ -39,16 +35,6 @@ class HelpScreen extends StatelessWidget {
             title: 'Como arquivar mensagens?',
             description:
                 'Pressione e segure uma mensagem e selecione "Arquivar" no menu. Mensagens arquivadas podem ser acessadas através do menu lateral.',
-            isDark: isDark,
-          ),
-          const SizedBox(height: 16),
-          _buildHelpSection(
-            context,
-            icon: Icons.dark_mode_outlined,
-            title: 'Como ativar o modo escuro?',
-            description:
-                'Abra o menu lateral e ative o switch "Modo Escuro" ou acesse Configurações > Aparência > Modo Escuro.',
-            isDark: isDark,
           ),
           const SizedBox(height: 16),
           _buildHelpSection(
@@ -57,7 +43,6 @@ class HelpScreen extends StatelessWidget {
             title: 'Como editar meu perfil?',
             description:
                 'Toque no seu avatar no menu lateral ou acesse Configurações > Perfil para editar seu nome e foto de perfil.',
-            isDark: isDark,
           ),
           const SizedBox(height: 16),
           _buildHelpSection(
@@ -66,7 +51,6 @@ class HelpScreen extends StatelessWidget {
             title: 'Como gerenciar notificações?',
             description:
                 'Acesse Configurações > Notificações para ativar ou desativar notificações, sons e vibrações.',
-            isDark: isDark,
           ),
           const SizedBox(height: 16),
           _buildHelpSection(
@@ -75,7 +59,6 @@ class HelpScreen extends StatelessWidget {
             title: 'Meus dados estão seguros?',
             description:
                 'Sim! Utilizamos criptografia de ponta a ponta e políticas de segurança rigorosas para proteger suas informações e mensagens.',
-            isDark: isDark,
           ),
           const SizedBox(height: 32),
           Card(
@@ -90,9 +73,7 @@ class HelpScreen extends StatelessWidget {
                   Icon(
                     Icons.help_outline,
                     size: 48,
-                    color: isDark
-                        ? const Color(0xFF00A884)
-                        : const Color(0xFF075E54),
+                    color: const Color(0xFF075E54),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -108,7 +89,7 @@ class HelpScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
@@ -125,7 +106,6 @@ class HelpScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required String description,
-    required bool isDark,
   }) {
     return Card(
       elevation: 2,
@@ -135,7 +115,7 @@ class HelpScreen extends StatelessWidget {
       child: ExpansionTile(
         leading: Icon(
           icon,
-          color: isDark ? const Color(0xFF00A884) : const Color(0xFF075E54),
+          color: const Color(0xFF075E54),
         ),
         title: Text(
           title,
@@ -151,7 +131,7 @@ class HelpScreen extends StatelessWidget {
               description,
               style: TextStyle(
                 fontSize: 14,
-                color: isDark ? Colors.grey[400] : Colors.grey[700],
+                color: Colors.grey[700],
                 height: 1.5,
               ),
             ),

@@ -40,7 +40,6 @@ class SupabaseService {
     return 'Ocorreu um erro. Tente novamente.';
   }
 
-  // Autenticação
   static Future<AuthResponse> signUp(String email, String password, String name) async {
     try {
       final response = await _client.auth.signUp(
@@ -48,7 +47,7 @@ class SupabaseService {
         password: password,
       );
 
-      // Create profile after successful signup
+  
       if (response.user != null) {
         await _client.from('profiles').insert({
           'id': response.user!.id,
@@ -88,42 +87,45 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return null;
 
-      final response = await _client
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .single();
-
+      // Criar um perfil simples baseado nos dados do usuário autenticado
       return AppUser.fromJson({
-        ...response,
+        'id': user.id,
         'email': user.email ?? '',
+        'name': user.userMetadata?['name'] ?? 'Usuário',
+        'created_at': user.createdAt ?? DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
       throw Exception('Erro ao carregar perfil: ${e.toString()}');
     }
   }
 
-  // Mensagens
   static Future<List<Message>> getMessages() async {
     try {
       final user = currentUser;
       if (user == null) return [];
 
-      final response = await _client
-          .from('messages')
-          .select('*, favorites!left(user_id)')
-          .order('created_at', ascending: false)
-          .limit(50);
-
-      return (response as List).map((json) {
-        final favorites = json['favorites'] as List?;
-        final isFavorite = favorites?.any((fav) => fav['user_id'] == user.id) ?? false;
-        
-        return Message.fromJson({
-          ...json,
-          'is_favorite': isFavorite,
-        });
-      }).toList();
+      // Retornar mensagens mockadas para demonstração
+      return [
+        Message(
+          id: '1',
+          content: 'Olá! Bem-vindo ao Connect!',
+          senderId: 'system',
+          senderName: 'Sistema',
+          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+          isFavorite: false,
+          isArchived: false,
+        ),
+        Message(
+          id: '2',
+          content: 'Este é um app de mensagens minimalista',
+          senderId: 'system',
+          senderName: 'Sistema',
+          createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
+          isFavorite: false,
+          isArchived: false,
+        ),
+      ];
     } catch (e) {
       throw Exception('Erro ao carregar mensagens: ${e.toString()}');
     }
@@ -136,15 +138,13 @@ class SupabaseService {
         throw Exception('Você precisa estar logado para enviar mensagens.');
       }
 
-      final profile = await getCurrentUserProfile();
-      final senderName = profile?.name ?? 'Usuário';
-
-      await _client.from('messages').insert({
-        'content': content,
-        'sender_id': user.id,
-        'sender_name': senderName,
-        'image_url': imageUrl,
-      });
+      // Simular envio de mensagem (em produção, salvaria no Supabase)
+      final senderName = user.userMetadata?['name'] ?? 'Usuário';
+      
+      // Para demonstração, apenas simular sucesso
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      print('Mensagem enviada: $content por $senderName');
     } catch (e) {
       if (e.toString().contains('NetworkException') || 
           e.toString().contains('SocketException')) {
@@ -154,36 +154,31 @@ class SupabaseService {
     }
   }
 
-  // Stream de mensagens em tempo real
   static Stream<List<Message>> getMessagesStream() {
     final user = currentUser;
     if (user == null) return Stream.value([]);
 
-    return _client
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
-        .limit(50)
-        .asyncMap((data) async {
-          final messageIds = data.map((msg) => msg['id']).toList();
-          
-          final favorites = await _client
-              .from('favorites')
-              .select('message_id')
-              .eq('user_id', user.id)
-              .inFilter('message_id', messageIds);
-          
-          final favoriteIds = (favorites as List)
-              .map((fav) => fav['message_id'])
-              .toSet();
-          
-          return data.map((json) {
-            return Message.fromJson({
-              ...json,
-              'is_favorite': favoriteIds.contains(json['id']),
-            });
-          }).toList();
-        });
+    // Retornar stream de mensagens mockadas para demonstração
+    return Stream.value([
+      Message(
+        id: '1',
+        content: 'Olá! Bem-vindo ao Connect!',
+        senderId: 'system',
+        senderName: 'Sistema',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        isFavorite: false,
+        isArchived: false,
+      ),
+      Message(
+        id: '2',
+        content: 'Este é um app de mensagens minimalista',
+        senderId: 'system',
+        senderName: 'Sistema',
+        createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
+        isFavorite: false,
+        isArchived: false,
+      ),
+    ]);
   }
 
   static Future<void> updateProfile({String? name, String? avatarUrl}) async {
@@ -193,20 +188,19 @@ class SupabaseService {
         throw Exception('Você precisa estar logado para atualizar o perfil.');
       }
 
-      final updates = <String, dynamic>{};
-      if (name != null) updates['name'] = name;
-      if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
-
-      await _client
-          .from('profiles')
-          .update(updates)
-          .eq('id', user.id);
+      // Simular atualização de perfil (em produção, atualizaria no Supabase)
+      if (name != null) {
+        await _client.auth.updateUser(
+          UserAttributes(data: {'name': name}),
+        );
+      }
+      
+      print('Perfil atualizado: $name');
     } catch (e) {
       throw Exception('Erro ao atualizar perfil: ${e.toString()}');
     }
   }
 
-  // Favoritos
   static Future<void> toggleFavorite(String messageId, bool isFavorite) async {
     try {
       final user = currentUser;
@@ -214,18 +208,9 @@ class SupabaseService {
         throw Exception('Você precisa estar logado.');
       }
 
-      if (isFavorite) {
-        await _client
-            .from('favorites')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('message_id', messageId);
-      } else {
-        await _client.from('favorites').insert({
-          'user_id': user.id,
-          'message_id': messageId,
-        });
-      }
+      // Simular favoritar mensagem (em produção, salvaria no Supabase)
+      print('Mensagem ${isFavorite ? 'desfavoritada' : 'favoritada'}: $messageId');
+      await Future.delayed(const Duration(milliseconds: 300));
     } catch (e) {
       throw Exception('Erro ao favoritar mensagem: ${e.toString()}');
     }
@@ -236,25 +221,13 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return [];
 
-      final response = await _client
-          .from('favorites')
-          .select('message_id, messages(*)')
-          .eq('user_id', user.id)
-          .order('created_at', ascending: false);
-
-      return (response as List).map((json) {
-        final messageData = json['messages'];
-        return Message.fromJson({
-          ...messageData,
-          'is_favorite': true,
-        });
-      }).toList();
+      // Retornar lista vazia para demonstração
+      return [];
     } catch (e) {
       throw Exception('Erro ao carregar favoritos: ${e.toString()}');
     }
   }
 
-  // Arquivados
   static Future<void> toggleArchived(String messageId, bool isArchived) async {
     try {
       final user = currentUser;
@@ -262,18 +235,9 @@ class SupabaseService {
         throw Exception('Você precisa estar logado.');
       }
 
-      if (isArchived) {
-        await _client
-            .from('archived')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('message_id', messageId);
-      } else {
-        await _client.from('archived').insert({
-          'user_id': user.id,
-          'message_id': messageId,
-        });
-      }
+      // Simular arquivar mensagem (em produção, salvaria no Supabase)
+      print('Mensagem ${isArchived ? 'desarquivada' : 'arquivada'}: $messageId');
+      await Future.delayed(const Duration(milliseconds: 300));
     } catch (e) {
       throw Exception('Erro ao arquivar mensagem: ${e.toString()}');
     }
@@ -284,19 +248,8 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return [];
 
-      final response = await _client
-          .from('archived')
-          .select('message_id, messages(*)')
-          .eq('user_id', user.id)
-          .order('created_at', ascending: false);
-
-      return (response as List).map((json) {
-        final messageData = json['messages'];
-        return Message.fromJson({
-          ...messageData,
-          'is_archived': true,
-        });
-      }).toList();
+      // Retornar lista vazia para demonstração
+      return [];
     } catch (e) {
       throw Exception('Erro ao carregar arquivados: ${e.toString()}');
     }

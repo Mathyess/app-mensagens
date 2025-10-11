@@ -26,14 +26,11 @@ class _AboutScreenState extends State<AboutScreen> {
         });
       }
     } catch (e) {
-      // Keep default version if package info fails
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Sobre'),
@@ -48,9 +45,7 @@ class _AboutScreenState extends State<AboutScreen> {
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF00A884)
-                    : const Color(0xFF075E54),
+                color: const Color(0xFF075E54),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -76,7 +71,7 @@ class _AboutScreenState extends State<AboutScreen> {
               'Versão $_version',
               style: TextStyle(
                 fontSize: 16,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                color: Colors.grey[600],
               ),
             ),
           ),
@@ -104,7 +99,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     'Conecte-se com pessoas de forma rápida, simples e segura.',
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDark ? Colors.grey[400] : Colors.grey[700],
+                      color: Colors.grey[700],
                       height: 1.6,
                     ),
                   ),
@@ -124,21 +119,18 @@ class _AboutScreenState extends State<AboutScreen> {
                   icon: Icons.security,
                   title: 'Segurança',
                   subtitle: 'Criptografia de ponta a ponta',
-                  isDark: isDark,
                 ),
                 Divider(height: 1),
                 _buildInfoTile(
                   icon: Icons.cloud_outlined,
                   title: 'Armazenamento',
                   subtitle: 'Backup automático na nuvem',
-                  isDark: isDark,
                 ),
                 Divider(height: 1),
                 _buildInfoTile(
                   icon: Icons.speed,
                   title: 'Desempenho',
                   subtitle: 'Mensagens em tempo real',
-                  isDark: isDark,
                 ),
               ],
             ),
@@ -179,7 +171,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   'Desenvolvido com',
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                    color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -196,7 +188,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       'por v0',
                       style: TextStyle(
                         fontSize: 14,
-                        color: isDark ? Colors.grey[500] : Colors.grey[600],
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
@@ -206,7 +198,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   '© 2025 App de Mensagens',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? Colors.grey[600] : Colors.grey[500],
+                    color: Colors.grey[500],
                   ),
                 ),
               ],
@@ -221,12 +213,11 @@ class _AboutScreenState extends State<AboutScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required bool isDark,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: isDark ? const Color(0xFF00A884) : const Color(0xFF075E54),
+        color: const Color(0xFF075E54),
       ),
       title: Text(
         title,
@@ -239,22 +230,20 @@ class _AboutScreenState extends State<AboutScreen> {
         subtitle,
         style: TextStyle(
           fontSize: 14,
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
+          color: Colors.grey[600],
         ),
       ),
     );
   }
 
   Widget _buildTechItem(String name, String description) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Row(
       children: [
         Container(
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF00A884) : const Color(0xFF075E54),
+            color: const Color(0xFF075E54),
             shape: BoxShape.circle,
           ),
         ),
@@ -274,7 +263,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 description,
                 style: TextStyle(
                   fontSize: 13,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: Colors.grey[600],
                 ),
               ),
             ],

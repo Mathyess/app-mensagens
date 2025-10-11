@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../routes.dart';
-import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -44,15 +42,11 @@ class _AppDrawerState extends State<AppDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Drawer(
       child: Container(
-        color: isDark ? const Color(0xFF1F2C34) : Colors.white,
+        color: Colors.white,
         child: Column(
           children: [
-            // User Profile Header
             FutureBuilder(
               future: SupabaseService.getCurrentUserProfile(),
               builder: (context, snapshot) {
@@ -68,15 +62,10 @@ class _AppDrawerState extends State<AppDrawer> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: isDark
-                          ? [
-                              const Color(0xFF00A884),
-                              const Color(0xFF00796B),
-                            ]
-                          : [
-                              const Color(0xFF075E54),
-                              const Color(0xFF128C7E),
-                            ],
+                      colors: [
+                        const Color(0xFF075E54),
+                        const Color(0xFF128C7E),
+                      ],
                     ),
                   ),
                   child: Column(
@@ -97,9 +86,7 @@ class _AppDrawerState extends State<AppDrawer> {
                               ? Icon(
                                   Icons.person,
                                   size: 40,
-                                  color: isDark
-                                      ? const Color(0xFF00A884)
-                                      : const Color(0xFF075E54),
+                                  color: const Color(0xFF075E54),
                                 )
                               : null,
                         ),
@@ -127,7 +114,6 @@ class _AppDrawerState extends State<AppDrawer> {
               },
             ),
 
-            // Menu Items
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -139,7 +125,6 @@ class _AppDrawerState extends State<AppDrawer> {
                       Navigator.pop(context);
                       Navigator.of(context).pushNamed(AppRoutes.profile);
                     },
-                    isDark: isDark,
                   ),
                   _buildMenuItem(
                     icon: Icons.chat_bubble_outline,
@@ -153,7 +138,6 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                       );
                     },
-                    isDark: isDark,
                   ),
                   _buildMenuItem(
                     icon: Icons.group,
@@ -167,7 +151,6 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                       );
                     },
-                    isDark: isDark,
                   ),
                   _buildMenuItem(
                     icon: Icons.archive_outlined,
@@ -176,7 +159,6 @@ class _AppDrawerState extends State<AppDrawer> {
                       Navigator.pop(context);
                       Navigator.of(context).pushNamed(AppRoutes.archived);
                     },
-                    isDark: isDark,
                   ),
                   _buildMenuItem(
                     icon: Icons.star_outline,
@@ -185,11 +167,10 @@ class _AppDrawerState extends State<AppDrawer> {
                       Navigator.pop(context);
                       Navigator.of(context).pushNamed(AppRoutes.favorites);
                     },
-                    isDark: isDark,
                   ),
                   Divider(
                     height: 1,
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                    color: Colors.grey.shade200,
                   ),
                   _buildMenuItem(
                     icon: Icons.settings_outlined,
@@ -198,16 +179,6 @@ class _AppDrawerState extends State<AppDrawer> {
                       Navigator.pop(context);
                       Navigator.of(context).pushNamed(AppRoutes.settings);
                     },
-                    isDark: isDark,
-                  ),
-                  _buildSwitchMenuItem(
-                    icon: Icons.dark_mode_outlined,
-                    title: 'Modo Escuro',
-                    value: isDark,
-                    onChanged: (value) {
-                      themeProvider.toggleTheme();
-                    },
-                    isDark: isDark,
                   ),
                   _buildSwitchMenuItem(
                     icon: Icons.notifications_outlined,
@@ -228,11 +199,10 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                       );
                     },
-                    isDark: isDark,
                   ),
                   Divider(
                     height: 1,
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                    color: Colors.grey.shade200,
                   ),
                   _buildMenuItem(
                     icon: Icons.help_outline,
@@ -241,7 +211,6 @@ class _AppDrawerState extends State<AppDrawer> {
                       Navigator.pop(context);
                       Navigator.of(context).pushNamed(AppRoutes.help);
                     },
-                    isDark: isDark,
                   ),
                   _buildMenuItem(
                     icon: Icons.info_outline,
@@ -250,18 +219,16 @@ class _AppDrawerState extends State<AppDrawer> {
                       Navigator.pop(context);
                       Navigator.of(context).pushNamed(AppRoutes.about);
                     },
-                    isDark: isDark,
                   ),
                 ],
               ),
             ),
 
-            // Logout Button
             Container(
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                    color: Colors.grey.shade200,
                   ),
                 ),
               ),
@@ -277,7 +244,6 @@ class _AppDrawerState extends State<AppDrawer> {
                     await _handleLogout();
                   }
                 },
-                isDark: isDark,
               ),
             ),
           ],
@@ -290,21 +256,20 @@ class _AppDrawerState extends State<AppDrawer> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
-    required bool isDark,
     Color? iconColor,
     Color? textColor,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: iconColor ?? (isDark ? Colors.grey[400] : Colors.grey[700]),
+        color: iconColor ?? Colors.grey[700],
         size: 24,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
-          color: textColor ?? (isDark ? Colors.grey[200] : Colors.grey[800]),
+          color: textColor ?? Colors.grey[800],
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -318,26 +283,25 @@ class _AppDrawerState extends State<AppDrawer> {
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
-    required bool isDark,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: isDark ? Colors.grey[400] : Colors.grey[700],
+        color: Colors.grey[700],
         size: 24,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
-          color: isDark ? Colors.grey[200] : Colors.grey[800],
+          color: Colors.grey[800],
           fontWeight: FontWeight.w500,
         ),
       ),
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: isDark ? const Color(0xFF00A884) : const Color(0xFF075E54),
+        activeColor: const Color(0xFF075E54),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
     );

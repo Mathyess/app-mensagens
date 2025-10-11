@@ -107,64 +107,156 @@ class _HomeScreenState extends State<HomeScreen> {
     final userName = currentUser?.userMetadata?['name'] ?? 'Usuário';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF075E54),
+        backgroundColor: Colors.white,
         elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Color(0xFF374151),
+            size: 20,
           ),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: Colors.white,
-              radius: 18,
-              child: Icon(
-                Icons.chat_bubble,
-                color: const Color(0xFF075E54),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF6366F1),
+                    Color(0xFF8B5CF6),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.group_rounded,
+                color: Colors.white,
                 size: 20,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'Chat Geral',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Chat Geral',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${_getOnlineCount()} pessoas online',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF10B981),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.search, color: Colors.white),
+            icon: const Icon(
+              Icons.videocam_rounded,
+              color: Color(0xFF374151),
+            ),
             onPressed: () {
-              // TODO: Implement search functionality
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Busca em desenvolvimento'),
-                  duration: Duration(seconds: 2),
+                const SnackBar(
+                  content: Text('Chamadas de vídeo em desenvolvimento'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
                 ),
               );
             },
           ),
+          IconButton(
+            icon: const Icon(
+              Icons.call_rounded,
+              color: Color(0xFF374151),
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Chamadas de voz em desenvolvimento'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                ),
+              );
+            },
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              color: Color(0xFF374151),
+            ),
+            onSelected: (value) {
+              switch (value) {
+                case 'search':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Busca em desenvolvimento'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  break;
+                case 'info':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Informações do grupo em desenvolvimento'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'search',
+                child: Row(
+                  children: [
+                    Icon(Icons.search_rounded),
+                    SizedBox(width: 12),
+                    Text('Buscar mensagens'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'info',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded),
+                    SizedBox(width: 12),
+                    Text('Informações do grupo'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-      drawer: AppDrawer(),
       body: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFECE5DD),
-          image: DecorationImage(
-            image: NetworkImage(
-              'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png',
-            ),
-            fit: BoxFit.cover,
-            opacity: 0.05,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFAFAFA),
+              Color(0xFFF3F4F6),
+            ],
           ),
         ),
         child: Column(
@@ -181,14 +273,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                            const SizedBox(height: 16),
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.error_outline_rounded,
+                                size: 40,
+                                color: Colors.red.shade400,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
                             Text(
                               'Erro ao carregar mensagens',
-                              style: TextStyle(
-                                fontSize: 18,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey[800],
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -196,28 +298,25 @@ class _HomeScreenState extends State<HomeScreen> {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: Colors.red.shade200),
                               ),
                               child: Text(
                                 errorMessage,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade900,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.red.shade700,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
                             ElevatedButton.icon(
                               onPressed: () {
                                 setState(() {});
                               },
-                              icon: Icon(Icons.refresh),
-                              label: Text('Tentar novamente'),
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Tentar novamente'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF075E54),
-                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                   vertical: 12,
@@ -234,9 +333,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
 
                   if (!snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF075E54)),
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF6366F1),
+                                  Color(0xFF8B5CF6),
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Carregando mensagens...',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -248,26 +373,36 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 64,
-                            color: Colors.grey[400],
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFF6366F1).withOpacity(0.1),
+                                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 40,
+                              color: const Color(0xFF9CA3AF),
+                            ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 24),
                           Text(
                             'Nenhuma mensagem ainda',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Seja o primeiro a enviar uma mensagem!',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: const Color(0xFF6B7280),
                             ),
                           ),
                         ],
@@ -282,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final message = messages[index];
@@ -295,28 +430,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           if (showDateSeparator)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                                  horizontal: 16,
+                                  vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 4,
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
                                 child: Text(
                                   _formatDate(message.createdAt),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[700],
-                                    fontWeight: FontWeight.w500,
+                                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: const Color(0xFF6B7280),
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -339,6 +474,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  int _getOnlineCount() {
+    // Mock - em produção viria do Supabase
+    return 12;
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {

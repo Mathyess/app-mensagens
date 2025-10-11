@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart';
 import '../routes.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -19,9 +17,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Configurações'),
@@ -29,8 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          // Account Section
-          _buildSectionHeader('Conta', isDark),
+          _buildSectionHeader('Conta'),
           _buildListTile(
             icon: Icons.person_outline,
             title: 'Perfil',
@@ -38,16 +32,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.of(context).pushNamed(AppRoutes.profile);
             },
-            isDark: isDark,
           ),
           _buildListTile(
             icon: Icons.key_outlined,
             title: 'Privacidade',
             subtitle: 'Configurações de privacidade',
             onTap: () {
-              _showPrivacySettings(context, isDark);
+              _showPrivacySettings(context);
             },
-            isDark: isDark,
           ),
           _buildListTile(
             icon: Icons.security_outlined,
@@ -58,37 +50,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(content: Text('Funcionalidade em desenvolvimento')),
               );
             },
-            isDark: isDark,
           ),
-          _buildDivider(isDark),
+          _buildDivider(),
 
-          // Appearance Section
-          _buildSectionHeader('Aparência', isDark),
-          _buildSwitchTile(
-            icon: Icons.dark_mode_outlined,
-            title: 'Modo Escuro',
-            subtitle: isDark ? 'Ativado' : 'Desativado',
-            value: isDark,
-            onChanged: (value) {
-              themeProvider.toggleTheme();
-            },
-            isDark: isDark,
-          ),
-          _buildListTile(
-            icon: Icons.wallpaper_outlined,
-            title: 'Papel de Parede',
-            subtitle: 'Personalizar fundo do chat',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Funcionalidade em desenvolvimento')),
-              );
-            },
-            isDark: isDark,
-          ),
-          _buildDivider(isDark),
-
-          // Notifications Section
-          _buildSectionHeader('Notificações', isDark),
+          _buildSectionHeader('Notificações'),
           _buildSwitchTile(
             icon: Icons.notifications_outlined,
             title: 'Notificações',
@@ -99,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _notificationsEnabled = value;
               });
             },
-            isDark: isDark,
           ),
           _buildSwitchTile(
             icon: Icons.volume_up_outlined,
@@ -111,7 +75,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _soundEnabled = value;
               });
             },
-            isDark: isDark,
           ),
           _buildSwitchTile(
             icon: Icons.vibration_outlined,
@@ -123,12 +86,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _vibrationEnabled = value;
               });
             },
-            isDark: isDark,
           ),
-          _buildDivider(isDark),
+          _buildDivider(),
 
-          // Data and Storage Section
-          _buildSectionHeader('Dados e Armazenamento', isDark),
+          _buildSectionHeader('Dados e Armazenamento'),
           _buildListTile(
             icon: Icons.storage_outlined,
             title: 'Uso de Dados',
@@ -138,7 +99,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(content: Text('Funcionalidade em desenvolvimento')),
               );
             },
-            isDark: isDark,
           ),
           _buildListTile(
             icon: Icons.download_outlined,
@@ -149,12 +109,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(content: Text('Funcionalidade em desenvolvimento')),
               );
             },
-            isDark: isDark,
           ),
-          _buildDivider(isDark),
+          _buildDivider(),
 
-          // Help Section
-          _buildSectionHeader('Ajuda', isDark),
+          _buildSectionHeader('Ajuda'),
           _buildListTile(
             icon: Icons.help_outline,
             title: 'Central de Ajuda',
@@ -162,7 +120,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.of(context).pushNamed(AppRoutes.help);
             },
-            isDark: isDark,
           ),
           _buildListTile(
             icon: Icons.info_outline,
@@ -171,7 +128,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.of(context).pushNamed(AppRoutes.about);
             },
-            isDark: isDark,
           ),
           const SizedBox(height: 20),
         ],
@@ -179,7 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, bool isDark) {
+  Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
@@ -187,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: isDark ? const Color(0xFF00A884) : const Color(0xFF075E54),
+          color: const Color(0xFF075E54),
         ),
       ),
     );
@@ -198,31 +154,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    required bool isDark,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: isDark ? Colors.grey[400] : Colors.grey[700],
+        color: Colors.grey[700],
       ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: isDark ? Colors.grey[200] : Colors.grey[900],
+          color: Colors.grey[900],
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 14,
-          color: isDark ? Colors.grey[500] : Colors.grey[600],
+          color: Colors.grey[600],
         ),
       ),
       trailing: Icon(
         Icons.chevron_right,
-        color: isDark ? Colors.grey[600] : Colors.grey[400],
+        color: Colors.grey[400],
       ),
       onTap: onTap,
     );
@@ -234,45 +189,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
-    required bool isDark,
   }) {
     return ListTile(
       leading: Icon(
         icon,
-        color: isDark ? Colors.grey[400] : Colors.grey[700],
+        color: Colors.grey[700],
       ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: isDark ? Colors.grey[200] : Colors.grey[900],
+          color: Colors.grey[900],
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 14,
-          color: isDark ? Colors.grey[500] : Colors.grey[600],
+          color: Colors.grey[600],
         ),
       ),
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: isDark ? const Color(0xFF00A884) : const Color(0xFF075E54),
+        activeColor: const Color(0xFF075E54),
       ),
     );
   }
 
-  Widget _buildDivider(bool isDark) {
+  Widget _buildDivider() {
     return Divider(
       height: 1,
       thickness: 1,
-      color: isDark ? Colors.grey[800] : Colors.grey[200],
+      color: Colors.grey[200],
     );
   }
 
-  void _showPrivacySettings(BuildContext context, bool isDark) {
+  void _showPrivacySettings(BuildContext context) {
     showModalBottomSheet(
       context: context,
       shape: RoundedRectangleBorder(
@@ -304,9 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   });
                 },
-                activeColor: isDark
-                    ? const Color(0xFF00A884)
-                    : const Color(0xFF075E54),
+                activeColor: const Color(0xFF075E54),
               ),
               SwitchListTile(
                 title: Text('Status Online'),
@@ -319,9 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   });
                 },
-                activeColor: isDark
-                    ? const Color(0xFF00A884)
-                    : const Color(0xFF075E54),
+                activeColor: const Color(0xFF075E54),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -329,9 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark
-                        ? const Color(0xFF00A884)
-                        : const Color(0xFF075E54),
+                    backgroundColor: const Color(0xFF075E54),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

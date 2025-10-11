@@ -82,8 +82,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       String? avatarUrl = _userProfile?.avatarUrl;
 
-      // TODO: Upload image to Supabase Storage if _imageFile is not null
-      // For now, we'll just save the name
 
       await SupabaseService.updateProfile(
         name: _nameController.text.trim(),

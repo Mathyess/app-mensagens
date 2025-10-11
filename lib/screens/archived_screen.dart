@@ -46,7 +46,6 @@ class _ArchivedScreenState extends State<ArchivedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = SupabaseService.currentUser?.id;
 
     return Scaffold(
@@ -64,14 +63,14 @@ class _ArchivedScreenState extends State<ArchivedScreen> {
                       Icon(
                         Icons.archive_outlined,
                         size: 80,
-                        color: isDark ? Colors.grey[700] : Colors.grey[300],
+                        color: Colors.grey[300],
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'Nenhuma mensagem arquivada',
                         style: TextStyle(
                           fontSize: 18,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          color: Colors.grey[600],
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -80,7 +79,7 @@ class _ArchivedScreenState extends State<ArchivedScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
-                          color: isDark ? Colors.grey[600] : Colors.grey[500],
+                          color: Colors.grey[500],
                         ),
                       ),
                     ],
@@ -88,14 +87,13 @@ class _ArchivedScreenState extends State<ArchivedScreen> {
                 )
               : Container(
                   decoration: BoxDecoration(
+                    color: const Color(0xFFECE5DD),
                     image: DecorationImage(
-                      image: AssetImage(
-                        isDark
-                            ? 'assets/chat_bg_dark.png'
-                            : 'assets/chat_bg.png',
+                      image: NetworkImage(
+                        'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png',
                       ),
                       fit: BoxFit.cover,
-                      opacity: 0.1,
+                      opacity: 0.05,
                     ),
                   ),
                   child: ListView.builder(

@@ -7,8 +7,8 @@ import 'routes.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  String supabaseUrl = 'https://dfwyrovkjvtvrbncwrmi.supabase.co';
-  String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmd3lyb3ZranZ0dnJibmN3cm1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3MTQyNDYsImV4cCI6MjA3NTI5MDI0Nn0.vVF7fc7IUhPg9co2VOCwQrCQCgXhum1-dBr2PoJifkg';
+  String supabaseUrl = 'https://elnyaexmstcwwqsvkgge.supabase.co';
+  String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsbnlhZXhtc3Rjd3dxc3ZrZ2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NTYyMzYsImV4cCI6MjA3NjAzMjIzNn0.D_I9unsTaDE48XrREH5r4bIbBY5fv94MIMOdEFrn9l4';
   
   // Try to load .env file only if not on web
   if (!kIsWeb) {

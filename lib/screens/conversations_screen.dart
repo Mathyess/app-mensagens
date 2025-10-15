@@ -234,20 +234,6 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               ),
               ),
             ),
-            if (conversation['isOnline'] as bool)
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
           ],
         ),
         title: Row(
@@ -315,19 +301,15 @@ class _ConversationsScreenState extends State<ConversationsScreen>
           ],
         ),
         onTap: () {
-          if (conversation['name'] == 'Chat Geral') {
-            Navigator.pushNamed(context, AppRoutes.home);
-          } else {
-            // Abrir conversa individual
-            Navigator.pushNamed(
-              context,
-              AppRoutes.home,
-              arguments: {
-                'chatName': conversation['name'],
-                'isGroup': false,
-              },
-            );
-          }
+          // Abrir conversa individual
+          Navigator.pushNamed(
+            context,
+            AppRoutes.home,
+            arguments: {
+              'chatName': conversation['name'],
+              'userId': conversation['id'],
+            },
+          );
         },
       ),
     );
@@ -353,49 +335,49 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     // Dados mockados - em produção viria do Supabase
     return [
       {
-        'name': 'Chat Geral',
-        'lastMessage': 'Olá pessoal! Como estão?',
-        'time': '12:30',
-        'avatarUrl': null,
-        'isOnline': true,
-        'hasUnread': false,
-        'unreadCount': 0,
-      },
-      {
-        'name': 'Maria Silva',
+        'id': 'maria_oliveira',
+        'name': 'Maria Oliveira',
         'lastMessage': 'Obrigada pela ajuda!',
         'time': '11:45',
         'avatarUrl': null,
-        'isOnline': true,
         'hasUnread': true,
         'unreadCount': 2,
       },
       {
+        'id': 'joao_santos',
         'name': 'João Santos',
         'lastMessage': 'Vou chegar em 10 minutos',
         'time': '10:20',
         'avatarUrl': null,
-        'isOnline': false,
         'hasUnread': false,
         'unreadCount': 0,
       },
       {
-        'name': 'Ana Costa',
+        'id': 'ana_silva',
+        'name': 'Ana Silva',
         'lastMessage': 'Perfeito! Até logo',
         'time': '09:15',
         'avatarUrl': null,
-        'isOnline': true,
         'hasUnread': false,
         'unreadCount': 0,
       },
       {
-        'name': 'Pedro Oliveira',
+        'id': 'carlos_santos',
+        'name': 'Carlos Santos',
         'lastMessage': 'Enviei o arquivo para você',
         'time': 'Ontem',
         'avatarUrl': null,
-        'isOnline': false,
         'hasUnread': true,
         'unreadCount': 1,
+      },
+      {
+        'id': 'pedro_lima',
+        'name': 'Pedro Lima',
+        'lastMessage': 'Como está o projeto?',
+        'time': 'Ontem',
+        'avatarUrl': null,
+        'hasUnread': false,
+        'unreadCount': 0,
       },
     ];
   }

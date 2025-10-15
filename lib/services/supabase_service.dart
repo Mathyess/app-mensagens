@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message.dart';
 import '../models/user.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
+  
+  // Sistema de conversas individuais
+  static final Map<String, List<Message>> _conversations = {};
+  static final StreamController<Map<String, List<Message>>> _conversationsController = StreamController<Map<String, List<Message>>>.broadcast();
 
   static String _getAuthErrorMessage(dynamic error) {
     if (error is AuthException) {
@@ -75,6 +80,9 @@ class SupabaseService {
   static Future<void> signOut() async {
     try {
       await _client.auth.signOut();
+      // Limpar conversas ao sair
+      _conversations.clear();
+      _conversationsController.add({});
     } catch (e) {
       throw Exception('Erro ao sair: ${e.toString()}');
     }
@@ -105,46 +113,47 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return [];
 
-      // Retornar mensagens mockadas para demonstração
-      return [
-        Message(
-          id: '1',
-          content: 'Olá! Bem-vindo ao Connect!',
-          senderId: 'system',
-          senderName: 'Sistema',
-          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-          isFavorite: false,
-          isArchived: false,
-        ),
-        Message(
-          id: '2',
-          content: 'Este é um app de mensagens minimalista',
-          senderId: 'system',
-          senderName: 'Sistema',
-          createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
-          isFavorite: false,
-          isArchived: false,
-        ),
-      ];
+      // Retornar lista vazia - mensagens serão carregadas via stream
+      return [];
     } catch (e) {
       throw Exception('Erro ao carregar mensagens: ${e.toString()}');
     }
   }
 
-  static Future<void> sendMessage(String content, {String? imageUrl}) async {
+  static Future<void> sendMessage(String content, String recipientId, {String? imageUrl}) async {
     try {
       final user = currentUser;
       if (user == null) {
         throw Exception('Você precisa estar logado para enviar mensagens.');
       }
 
-      // Simular envio de mensagem (em produção, salvaria no Supabase)
       final senderName = user.userMetadata?['name'] ?? 'Usuário';
       
-      // Para demonstração, apenas simular sucesso
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Criar nova mensagem
+      final newMessage = Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: content,
+        senderId: user.id,
+        senderName: senderName,
+        createdAt: DateTime.now(),
+        imageUrl: imageUrl,
+        isFavorite: false,
+        isArchived: false,
+      );
       
-      print('Mensagem enviada: $content por $senderName');
+      // Adicionar à conversa específica
+      if (!_conversations.containsKey(recipientId)) {
+        _conversations[recipientId] = [];
+      }
+      _conversations[recipientId]!.insert(0, newMessage);
+      
+      // Notificar o stream
+      _conversationsController.add(Map.from(_conversations));
+      
+      // Simular delay de rede
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      print('Mensagem enviada: $content por $senderName para $recipientId');
     } catch (e) {
       if (e.toString().contains('NetworkException') || 
           e.toString().contains('SocketException')) {
@@ -154,31 +163,74 @@ class SupabaseService {
     }
   }
 
-  static Stream<List<Message>> getMessagesStream() {
+  static Stream<List<Message>> getMessagesStream(String recipientId) {
     final user = currentUser;
     if (user == null) return Stream.value([]);
 
-    // Retornar stream de mensagens mockadas para demonstração
-    return Stream.value([
+    // Se não há mensagens para este usuário, adicionar algumas de exemplo
+    if (!_conversations.containsKey(recipientId) || _conversations[recipientId]!.isEmpty) {
+      _addSampleMessages(recipientId);
+    }
+
+    // Retornar stream das mensagens desta conversa
+    return _conversationsController.stream.map((conversations) => 
+      conversations[recipientId] ?? []);
+  }
+
+  static void _addSampleMessages(String recipientId) {
+    final user = currentUser;
+    if (user == null) return;
+
+    // Adicionar algumas mensagens de exemplo para esta conversa
+    final sampleMessages = [
       Message(
-        id: '1',
-        content: 'Olá! Bem-vindo ao Connect!',
-        senderId: 'system',
-        senderName: 'Sistema',
-        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        id: 'sample_1_$recipientId',
+        content: 'Olá! Como você está?',
+        senderId: recipientId,
+        senderName: _getUserNameById(recipientId),
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
         isFavorite: false,
         isArchived: false,
       ),
       Message(
-        id: '2',
-        content: 'Este é um app de mensagens minimalista',
-        senderId: 'system',
-        senderName: 'Sistema',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
+        id: 'sample_2_$recipientId',
+        content: 'Oi! Estou bem, obrigado! E você?',
+        senderId: user.id,
+        senderName: user.userMetadata?['name'] ?? 'Usuário',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 45)),
         isFavorite: false,
         isArchived: false,
       ),
-    ]);
+      Message(
+        id: 'sample_3_$recipientId',
+        content: 'Também estou bem! Que bom te ver por aqui 😊',
+        senderId: recipientId,
+        senderName: _getUserNameById(recipientId),
+        createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 30)),
+        isFavorite: false,
+        isArchived: false,
+      ),
+    ];
+
+    _conversations[recipientId] = sampleMessages;
+  }
+
+  static String _getUserNameById(String userId) {
+    // Mapear IDs para nomes (em produção viria do banco)
+    switch (userId) {
+      case 'maria_oliveira':
+        return 'Maria Oliveira';
+      case 'ana_silva':
+        return 'Ana Silva';
+      case 'carlos_santos':
+        return 'Carlos Santos';
+      case 'joao_costa':
+        return 'João Costa';
+      case 'pedro_lima':
+        return 'Pedro Lima';
+      default:
+        return 'Usuário';
+    }
   }
 
   static Future<void> updateProfile({String? name, String? avatarUrl}) async {

@@ -62,6 +62,11 @@ class AppRoutes {
   }
 
   static Widget getInitialRoute() {
-    return const SplashScreen();
+    final user = SupabaseService.currentUser;
+    if (user == null) {
+      return const SplashScreen();
+    } else {
+      return const ConversationsScreen();
+    }
   }
 }

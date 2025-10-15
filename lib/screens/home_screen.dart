@@ -67,7 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleSendMessage(String content) async {
     try {
-      await SupabaseService.sendMessage(content);
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final userId = args?['userId'] as String?;
+      
+      if (userId == null) {
+        throw Exception('Usuário não encontrado');
+      }
+      
+      await SupabaseService.sendMessage(content, userId);
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
@@ -126,39 +133,32 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [
-                    Color(0xFF6366F1),
-                    Color(0xFF8B5CF6),
+                    _getColorFromName(_getChatName()),
+                    _getColorFromName(_getChatName()).withOpacity(0.7),
                   ],
                 ),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.group_rounded,
-                color: Colors.white,
-                size: 20,
+              child: Center(
+                child: Text(
+                  _getChatName().isNotEmpty ? _getChatName()[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Chat Geral',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '${_getOnlineCount()} pessoas online',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: const Color(0xFF10B981),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              child: Text(
+                _getChatName(),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -166,85 +166,17 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(
-              Icons.videocam_rounded,
+              Icons.info_outline_rounded,
               color: Color(0xFF374151),
             ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Chamadas de vídeo em desenvolvimento'),
+                SnackBar(
+                  content: Text('Conversa com ${_getChatName()}'),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
                 ),
               );
             },
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.call_rounded,
-              color: Color(0xFF374151),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Chamadas de voz em desenvolvimento'),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                ),
-              );
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert_rounded,
-              color: Color(0xFF374151),
-            ),
-            onSelected: (value) {
-              switch (value) {
-                case 'search':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Busca em desenvolvimento'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  break;
-                case 'info':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Informações do grupo em desenvolvimento'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'search',
-                child: Row(
-                  children: [
-                    Icon(Icons.search_rounded),
-                    SizedBox(width: 12),
-                    Text('Buscar mensagens'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'info',
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded),
-                    SizedBox(width: 12),
-                    Text('Informações do grupo'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -263,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Expanded(
               child: StreamBuilder<List<Message>>(
-                stream: SupabaseService.getMessagesStream(),
+                stream: SupabaseService.getMessagesStream(_getUserId()),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     final errorMessage = snapshot.error.toString().replaceFirst('Exception: ', '');
@@ -476,9 +408,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  int _getOnlineCount() {
-    // Mock - em produção viria do Supabase
-    return 12;
+  String _getChatName() {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    return args?['chatName'] as String? ?? 'Conversa';
+  }
+
+  String _getUserId() {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    return args?['userId'] as String? ?? '';
+  }
+
+  Color _getColorFromName(String name) {
+    final colors = [
+      const Color(0xFF6366F1),
+      const Color(0xFF8B5CF6),
+      const Color(0xFF06B6D4),
+      const Color(0xFF10B981),
+      const Color(0xFFF59E0B),
+      const Color(0xFFEF4444),
+      const Color(0xFFEC4899),
+      const Color(0xFF8B5CF6),
+    ];
+    
+    final hash = name.hashCode.abs();
+    return colors[hash % colors.length];
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {

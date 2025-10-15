@@ -10,11 +10,14 @@ class NewConversationScreen extends StatefulWidget {
 
 class _NewConversationScreenState extends State<NewConversationScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   String _searchQuery = '';
+  bool _showEmailInput = false;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -22,43 +25,33 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
     // Mock de usuários disponíveis - em produção viria do Supabase
     final allUsers = [
       {
-        'id': '1',
+        'id': 'ana_silva',
         'name': 'Ana Silva',
         'email': 'ana@email.com',
-        'isOnline': true,
-        'lastSeen': 'Online',
         'avatar': null,
       },
       {
-        'id': '2',
+        'id': 'carlos_santos',
         'name': 'Carlos Santos',
         'email': 'carlos@email.com',
-        'isOnline': false,
-        'lastSeen': 'Há 5 minutos',
         'avatar': null,
       },
       {
-        'id': '3',
+        'id': 'maria_oliveira',
         'name': 'Maria Oliveira',
         'email': 'maria@email.com',
-        'isOnline': true,
-        'lastSeen': 'Online',
         'avatar': null,
       },
       {
-        'id': '4',
+        'id': 'joao_costa',
         'name': 'João Costa',
         'email': 'joao@email.com',
-        'isOnline': false,
-        'lastSeen': 'Há 1 hora',
         'avatar': null,
       },
       {
-        'id': '5',
+        'id': 'pedro_lima',
         'name': 'Pedro Lima',
         'email': 'pedro@email.com',
-        'isOnline': true,
-        'lastSeen': 'Online',
         'avatar': null,
       },
     ];
@@ -85,6 +78,68 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
     );
   }
 
+  void _addUserByEmail() {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, digite um email válido'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, digite um email válido'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Simular busca de usuário por email
+    final user = _findUserByEmail(email);
+    if (user != null) {
+      _startConversation(user);
+    } else {
+      // Se não encontrar, criar um usuário temporário
+      final newUser = {
+        'id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        'name': email.split('@')[0], // Usar parte antes do @ como nome
+        'email': email,
+        'avatar': null,
+      };
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Usuário não encontrado. Iniciando conversa com $email'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      
+      _startConversation(newUser);
+    }
+
+    // Limpar e esconder o campo de email
+    _emailController.clear();
+    setState(() {
+      _showEmailInput = false;
+    });
+  }
+
+  Map<String, dynamic>? _findUserByEmail(String email) {
+    final allUsers = _getAvailableUsers();
+    try {
+      return allUsers.firstWhere((user) => 
+        (user['email'] as String).toLowerCase() == email.toLowerCase());
+    } catch (e) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final users = _getAvailableUsers();
@@ -109,77 +164,53 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showEmailInput ? Icons.close : Icons.person_add_rounded,
+              color: const Color(0xFF374151),
+            ),
+            onPressed: () {
+              setState(() {
+                _showEmailInput = !_showEmailInput;
+                if (!_showEmailInput) {
+                  _emailController.clear();
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Campo de busca
+          // Campo de busca ou email
           Container(
             padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Buscar pessoas...',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontWeight: FontWeight.w400,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF9CA3AF),
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF9FAFB),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF6366F1),
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
+            child: _showEmailInput ? _buildEmailInput() : _buildSearchInput(),
           ),
           const Divider(height: 1),
           // Lista de usuários
           Expanded(
-            child: users.isEmpty
+            child: _showEmailInput
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.search_off_rounded,
+                          Icons.email_rounded,
                           size: 64,
                           color: Colors.grey.shade300,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Nenhum usuário encontrado',
+                          'Adicionar por Email',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: const Color(0xFF6B7280),
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Tente buscar por nome ou email',
+                          'Digite o email do usuário acima',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: const Color(0xFF9CA3AF),
                           ),
@@ -187,13 +218,40 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    itemCount: users.length,
-                    itemBuilder: (context, index) {
-                      final user = users[index];
-                      return _buildUserTile(user);
-                    },
-                  ),
+                : users.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off_rounded,
+                              size: 64,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Nenhum usuário encontrado',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tente buscar por nome ou email',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: users.length,
+                        itemBuilder: (context, index) {
+                          final user = users[index];
+                          return _buildUserTile(user);
+                        },
+                      ),
           ),
         ],
       ),
@@ -235,20 +293,6 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
               ),
               ),
             ),
-            if (user['isOnline'])
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
           ],
         ),
         title: Text(
@@ -257,41 +301,11 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              user['email'] as String,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6B7280),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: (user['isOnline'] as bool) 
-                        ? const Color(0xFF10B981) 
-                        : const Color(0xFF9CA3AF),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  user['lastSeen'] as String,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: (user['isOnline'] as bool) 
-                        ? const Color(0xFF10B981) 
-                        : const Color(0xFF9CA3AF),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        subtitle: Text(
+          user['email'] as String,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF6B7280),
+          ),
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -310,6 +324,111 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         ),
         onTap: () => _startConversation(user),
       ),
+    );
+  }
+
+  Widget _buildSearchInput() {
+    return TextField(
+      controller: _searchController,
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+      decoration: InputDecoration(
+        hintText: 'Buscar pessoas...',
+        hintStyle: const TextStyle(
+          color: Color(0xFF9CA3AF),
+          fontWeight: FontWeight.w400,
+        ),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: Color(0xFF9CA3AF),
+          size: 20,
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFF6366F1),
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailInput() {
+    return Column(
+      children: [
+        TextField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            hintText: 'Digite o email do usuário...',
+            hintStyle: const TextStyle(
+              color: Color(0xFF9CA3AF),
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: const Icon(
+              Icons.email_rounded,
+              color: Color(0xFF9CA3AF),
+              size: 20,
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFF6366F1),
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _addUserByEmail,
+            icon: const Icon(Icons.person_add_rounded, size: 18),
+            label: const Text('Adicionar por Email'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

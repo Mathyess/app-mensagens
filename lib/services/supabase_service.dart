@@ -52,7 +52,24 @@ class SupabaseService {
         password: password,
       );
 
-  
+      // Se o usuário foi criado mas precisa confirmar email
+      if (response.user != null && response.session == null) {
+        // Criar perfil mesmo sem sessão ativa
+        try {
+          await _client.from('profiles').insert({
+            'id': response.user!.id,
+            'name': name,
+          });
+        } catch (e) {
+          // Ignorar erro se o perfil já existe
+          print('Perfil já existe ou erro ao criar: $e');
+        }
+        
+        // Lançar exceção especial para confirmação de email
+        throw Exception('CONFIRM_EMAIL');
+      }
+
+      // Se chegou aqui, o usuário foi criado e já está logado
       if (response.user != null) {
         await _client.from('profiles').insert({
           'id': response.user!.id,
@@ -62,6 +79,9 @@ class SupabaseService {
 
       return response;
     } catch (e) {
+      if (e.toString().contains('CONFIRM_EMAIL')) {
+        throw Exception('CONFIRM_EMAIL');
+      }
       throw Exception(_getAuthErrorMessage(e));
     }
   }

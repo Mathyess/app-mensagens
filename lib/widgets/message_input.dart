@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/matrix_theme.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSendMessage;
@@ -87,37 +88,50 @@ class _MessageInputState extends State<MessageInput>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: MatrixTheme.matrixBlack,
         border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
+          top: BorderSide(color: MatrixTheme.matrixGreen, width: 1),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: MatrixTheme.matrixGreen.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Row(
           children: [
-            // Campo de texto simples
+            // Campo de texto Matrix
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(24),
+                  color: MatrixTheme.matrixGray,
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(
                     color: _focusNode.hasFocus 
-                        ? const Color(0xFF6366F1) 
-                        : const Color(0xFFE5E7EB),
+                        ? MatrixTheme.matrixGreen
+                        : MatrixTheme.matrixDimGreen,
+                    width: _focusNode.hasFocus ? 2 : 1,
                   ),
                 ),
                 child: TextField(
                   controller: _textController,
                   focusNode: _focusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Mensagem',
-                    hintStyle: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontWeight: FontWeight.w400,
+                  style: const TextStyle(
+                    color: MatrixTheme.matrixGreen,
+                    fontFamily: 'Courier',
+                    fontSize: 14,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: '> Digite_sua_mensagem...',
+                    hintStyle: TextStyle(
+                      color: MatrixTheme.matrixDimGreen,
+                      fontFamily: 'Courier',
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
+                    contentPadding: EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
@@ -129,7 +143,7 @@ class _MessageInputState extends State<MessageInput>
               ),
             ),
             const SizedBox(width: 12),
-            // Botão de enviar simples
+            // Botão de enviar Matrix
             AnimatedBuilder(
               animation: _sendAnimation,
               builder: (context, child) {
@@ -139,14 +153,18 @@ class _MessageInputState extends State<MessageInput>
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: _hasText ? const Color(0xFF6366F1) : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(20),
+                      color: _hasText ? MatrixTheme.matrixGreen : MatrixTheme.matrixGray,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: _hasText ? MatrixTheme.matrixGreen : MatrixTheme.matrixDimGreen,
+                        width: 1,
+                      ),
                     ),
                     child: IconButton(
                       icon: Icon(
-                        Icons.send_rounded,
-                        color: _hasText ? Colors.white : Colors.grey.shade500,
-                        size: 18,
+                        Icons.play_arrow,
+                        color: _hasText ? MatrixTheme.matrixBlack : MatrixTheme.matrixDimGreen,
+                        size: 20,
                       ),
                       onPressed: _hasText ? _sendMessage : null,
                     ),

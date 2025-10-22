@@ -3,6 +3,7 @@ import '../widgets/conversation_tile.dart';
 import '../widgets/app_drawer.dart';
 import '../services/supabase_service.dart';
 import '../routes.dart';
+import '../theme/matrix_theme.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -148,22 +149,25 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     final userName = currentUser?.userMetadata?['name'] ?? 'Usuário';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: MatrixTheme.matrixBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: MatrixTheme.matrixBlack,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Chats',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
+        title: const Text(
+          '>> MATRIX_CHAT_SYSTEM_',
+          style: TextStyle(
+            color: MatrixTheme.matrixGreen,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            fontFamily: 'Courier',
           ),
         ),
         actions: [
           IconButton(
             icon: const Icon(
-              Icons.person_outline_rounded,
-              color: Color(0xFF374151),
+              Icons.account_circle,
+              color: MatrixTheme.matrixGreen,
             ),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
           ),
@@ -171,35 +175,39 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       ),
       body: Column(
         children: [
-          // Campo de busca simples
+          // Campo de busca Matrix
           Container(
             padding: const EdgeInsets.all(16),
             child: TextField(
+              style: const TextStyle(
+                color: MatrixTheme.matrixGreen,
+                fontFamily: 'Courier',
+              ),
               decoration: InputDecoration(
-                hintText: 'Search or start new chat',
+                hintText: '> search_connections...',
                 hintStyle: const TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontWeight: FontWeight.w400,
+                  color: MatrixTheme.matrixDimGreen,
+                  fontFamily: 'Courier',
                 ),
                 prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF9CA3AF),
+                  Icons.search,
+                  color: MatrixTheme.matrixGreen,
                   size: 20,
                 ),
                 filled: true,
-                fillColor: const Color(0xFFF9FAFB),
+                fillColor: MatrixTheme.matrixGray,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: MatrixTheme.matrixDimGreen),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(color: MatrixTheme.matrixDimGreen),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(4),
                   borderSide: const BorderSide(
-                    color: Color(0xFF6366F1),
+                    color: MatrixTheme.matrixGreen,
                     width: 2,
                   ),
                 ),
@@ -210,13 +218,13 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               ),
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: MatrixTheme.matrixGreen.withOpacity(0.3)),
           // Lista de conversas
           Expanded(
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                      valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.matrixGreen),
                     ),
                   )
                 : _conversations.isEmpty
@@ -225,15 +233,18 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.chat_bubble_outline_rounded,
+                              Icons.terminal,
                               size: 64,
-                              color: Colors.grey.shade300,
+                              color: MatrixTheme.matrixGreen,
                             ),
                             const SizedBox(height: 16),
-                            Text(
-                              'Nenhuma conversa ainda',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF6B7280),
+                            const Text(
+                              '> NO_CONNECTIONS_FOUND',
+                              style: TextStyle(
+                                color: MatrixTheme.matrixGreen,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Courier',
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -261,10 +272,10 @@ class _ConversationsScreenState extends State<ConversationsScreen>
         onPressed: () {
           Navigator.pushNamed(context, AppRoutes.newConversation);
         },
-        backgroundColor: const Color(0xFF6366F1),
-        foregroundColor: Colors.white,
+        backgroundColor: MatrixTheme.matrixGreen,
+        foregroundColor: MatrixTheme.matrixBlack,
         elevation: 0,
-        child: const Icon(Icons.edit_rounded),
+        child: const Icon(Icons.add, size: 32),
       ),
     );
   }

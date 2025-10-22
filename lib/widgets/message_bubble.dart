@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 import '../services/supabase_service.dart';
+import '../theme/matrix_theme.dart';
 
 class MessageBubble extends StatefulWidget {
   final Message message;
@@ -161,12 +162,8 @@ class _MessageBubbleState extends State<MessageBubble> {
               height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    _getColorFromName(widget.message.senderName),
-                    _getColorFromName(widget.message.senderName).withOpacity(0.7),
-                  ],
-                ),
+                border: Border.all(color: MatrixTheme.matrixGreen, width: 2),
+                color: MatrixTheme.matrixBlack,
               ),
               child: Center(
                 child: Text(
@@ -174,9 +171,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                       ? widget.message.senderName[0].toUpperCase() 
                       : '?',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: MatrixTheme.matrixGreen,
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Courier',
                   ),
                 ),
               ),
@@ -191,29 +189,21 @@ class _MessageBubbleState extends State<MessageBubble> {
                   maxWidth: MediaQuery.of(context).size.width * 0.7,
                 ),
                 decoration: BoxDecoration(
-                  gradient: widget.isMe
-                      ? const LinearGradient(
-                          colors: [
-                            Color(0xFF6366F1),
-                            Color(0xFF8B5CF6),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  color: widget.isMe ? null : Colors.white,
+                  color: widget.isMe ? MatrixTheme.matrixDarkGreen : MatrixTheme.matrixGray,
+                  border: Border.all(
+                    color: widget.isMe ? MatrixTheme.matrixGreen : MatrixTheme.matrixDimGreen,
+                    width: 1,
+                  ),
                   borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(20),
-                    topRight: const Radius.circular(20),
-                    bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
-                    bottomRight: Radius.circular(widget.isMe ? 4 : 20),
+                    topLeft: const Radius.circular(2),
+                    topRight: const Radius.circular(2),
+                    bottomLeft: Radius.circular(widget.isMe ? 2 : 0),
+                    bottomRight: Radius.circular(widget.isMe ? 0 : 2),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.isMe 
-                          ? const Color(0xFF6366F1).withOpacity(0.2)
-                          : Colors.black.withOpacity(0.05),
-                      blurRadius: widget.isMe ? 8 : 4,
+                      color: MatrixTheme.matrixGreen.withOpacity(0.2),
+                      blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -227,11 +217,12 @@ class _MessageBubbleState extends State<MessageBubble> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Text(
-                            widget.message.senderName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: _getColorFromName(widget.message.senderName),
+                            '> ${widget.message.senderName}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: MatrixTheme.matrixLightGreen,
+                              fontFamily: 'Courier',
                             ),
                           ),
                         ),
@@ -241,19 +232,20 @@ class _MessageBubbleState extends State<MessageBubble> {
                           Expanded(
                             child: Text(
                               widget.message.content,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: widget.isMe ? Colors.white : const Color(0xFF374151),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: MatrixTheme.matrixGreen,
                                 height: 1.4,
+                                fontFamily: 'Courier',
                               ),
                             ),
                           ),
                           if (widget.message.isFavorite) ...[
                             const SizedBox(width: 8),
-                            Icon(
+                            const Icon(
                               Icons.star_rounded,
                               size: 16,
-                              color: widget.isMe ? Colors.white.withOpacity(0.8) : Colors.amber,
+                              color: MatrixTheme.matrixLightGreen,
                             ),
                           ],
                         ],
@@ -264,21 +256,22 @@ class _MessageBubbleState extends State<MessageBubble> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            _formatTime(widget.message.createdAt),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: widget.isMe 
-                                  ? Colors.white.withOpacity(0.7)
-                                  : const Color(0xFF9CA3AF),
-                              fontWeight: FontWeight.w500,
+                            '[${_formatTime(widget.message.createdAt)}]',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: MatrixTheme.matrixDimGreen,
+                              fontFamily: 'Courier',
                             ),
                           ),
                           if (widget.isMe) ...[
                             const SizedBox(width: 6),
-                            Icon(
-                              Icons.done_all_rounded,
-                              size: 16,
-                              color: Colors.white.withOpacity(0.7),
+                            const Text(
+                              '✓✓',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: MatrixTheme.matrixGreen,
+                                fontFamily: 'Courier',
+                              ),
                             ),
                           ],
                         ],

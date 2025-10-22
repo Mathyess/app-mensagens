@@ -5,6 +5,7 @@ import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
 import '../widgets/app_drawer.dart';
 import '../routes.dart';
+import '../theme/matrix_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   final String? userId;
@@ -158,16 +159,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final userName = currentUser?.userMetadata?['name'] ?? 'Usuário';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: MatrixTheme.matrixBlack,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: MatrixTheme.matrixBlack,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(
-            Icons.arrow_back_ios_rounded,
-            color: Color(0xFF374151),
-            size: 20,
+            Icons.arrow_back,
+            color: MatrixTheme.matrixGreen,
+            size: 24,
           ),
           onPressed: () {
             if (Navigator.canPop(context)) {
@@ -183,12 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getColorFromName(_getChatName()),
-                    _getColorFromName(_getChatName()).withOpacity(0.7),
-                  ],
-                ),
+                border: Border.all(color: MatrixTheme.matrixGreen, width: 2),
+                color: MatrixTheme.matrixDarkGreen,
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -197,9 +194,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? _getChatName()[0].toUpperCase()
                       : '?',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: MatrixTheme.matrixGreen,
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Courier',
                   ),
                 ),
               ),
@@ -207,10 +205,13 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                _getChatName(),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                '> ${_getChatName()}',
+                style: const TextStyle(
+                  color: MatrixTheme.matrixGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  fontFamily: 'Courier',
+                ),
               ),
             ),
           ],
@@ -218,13 +219,14 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(
-              Icons.info_outline_rounded,
-              color: Color(0xFF374151),
+              Icons.terminal,
+              color: MatrixTheme.matrixGreen,
             ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Conversa com ${_getChatName()}'),
+                  content: Text('>> CONNECTION: ${_getChatName()}'),
+                  backgroundColor: MatrixTheme.matrixDarkGreen,
                   behavior: SnackBarBehavior.floating,
                 ),
               );
@@ -233,14 +235,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFAFAFA),
-              Color(0xFFF3F4F6),
-            ],
+        decoration: BoxDecoration(
+          color: MatrixTheme.matrixBlack,
+          image: DecorationImage(
+            image: NetworkImage('https://www.transparenttextures.com/patterns/45-degree-fabric-dark.png'),
+            opacity: 0.05,
+            repeat: ImageRepeat.repeat,
           ),
         ),
         child: Column(
@@ -380,29 +380,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                 width: 60,
                                 height: 60,
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF6366F1),
-                                      Color(0xFF8B5CF6),
-                                    ],
-                                  ),
+                                  border: Border.all(color: MatrixTheme.matrixGreen, width: 2),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const CircularProgressIndicator(
                                   strokeWidth: 3,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
+                                      MatrixTheme.matrixGreen),
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              Text(
-                                'Carregando mensagens...',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(
-                                      color: const Color(0xFF6B7280),
-                                    ),
+                              const Text(
+                                '>> LOADING_DATA...',
+                                style: TextStyle(
+                                  color: MatrixTheme.matrixGreen,
+                                  fontSize: 14,
+                                  fontFamily: 'Courier',
+                                ),
                               ),
                             ],
                           ),
@@ -420,39 +414,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                 width: 80,
                                 height: 80,
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      const Color(0xFF6366F1).withOpacity(0.1),
-                                      const Color(0xFF8B5CF6).withOpacity(0.1),
-                                    ],
-                                  ),
+                                  border: Border.all(color: MatrixTheme.matrixGreen, width: 2),
+                                  color: MatrixTheme.matrixDarkGreen,
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(
-                                  Icons.chat_bubble_outline_rounded,
+                                child: const Icon(
+                                  Icons.code,
                                   size: 40,
-                                  color: const Color(0xFF9CA3AF),
+                                  color: MatrixTheme.matrixGreen,
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              Text(
-                                'Nenhuma mensagem ainda',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                              const Text(
+                                '> NO_MESSAGES_FOUND',
+                                style: TextStyle(
+                                  color: MatrixTheme.matrixGreen,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Courier',
+                                ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                'Seja o primeiro a enviar uma mensagem!',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(
-                                      color: const Color(0xFF6B7280),
-                                    ),
+                              const Text(
+                                '>> Inicie a transmissão...',
+                                style: TextStyle(
+                                  color: MatrixTheme.matrixDimGreen,
+                                  fontSize: 14,
+                                  fontFamily: 'Courier',
+                                ),
                               ),
                             ],
                           ),

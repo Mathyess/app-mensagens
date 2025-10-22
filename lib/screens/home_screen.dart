@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        0,
+        _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -112,7 +112,14 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       await SupabaseService.sendMessage(content, userId);
-      _scrollToBottom();
+      
+      // Aguardar um pouco para garantir que o stream receba a nova mensagem
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // Scroll para o final após enviar
+      if (mounted) {
+        _scrollToBottom();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -453,12 +460,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
 
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _scrollToBottom();
+                        Future.delayed(const Duration(milliseconds: 100), () {
+                          _scrollToBottom();
+                        });
                       });
 
                       return ListView.builder(
                         controller: _scrollController,
-                        reverse: true,
+                        reverse: false,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
@@ -466,9 +475,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           final isMe = message.senderId == currentUser?.id;
 
                           final showDateSeparator =
-                              index == messages.length - 1 ||
+                              index == 0 ||
                                   !_isSameDay(message.createdAt,
-                                      messages[index + 1].createdAt);
+                                      messages[index - 1].createdAt);
 
                           return Column(
                             children: [

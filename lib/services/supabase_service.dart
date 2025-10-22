@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'package:async/async.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message.dart';
 import '../models/user.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
+  
+  // StreamControllers para forçar atualização de mensagens
+  static final Map<String, StreamController<void>> _refreshControllers = {};
 
   static String _getAuthErrorMessage(dynamic error) {
     if (error is AuthException) {
@@ -160,6 +164,13 @@ class SupabaseService {
       }).select().single();
 
       print('✅ Mensagem enviada: ${response['id']}');
+      
+      // Forçar atualização do stream
+      final controller = _refreshControllers[recipientId];
+      if (controller != null && !controller.isClosed) {
+        controller.add(null);
+        print('🔄 Sinal de atualização enviado');
+      }
     } catch (e) {
       print('❌ Erro ao enviar mensagem: $e');
       if (e.toString().contains('NetworkException') || 
@@ -185,6 +196,12 @@ class SupabaseService {
       return;
     }
 
+    // Criar controller de refresh para esta conversa
+    if (!_refreshControllers.containsKey(recipientId)) {
+      _refreshControllers[recipientId] = StreamController<void>.broadcast();
+    }
+    final refreshController = _refreshControllers[recipientId]!;
+
     try {
       print('📤 Buscando conversa com: $recipientId');
       
@@ -196,47 +213,76 @@ class SupabaseService {
 
       print('📱 Conversation ID: $conversationId');
 
-      // Buscar nome do remetente para cada mensagem
+      // Cache de nomes de perfis
       final profiles = <String, String>{};
       
-      // Buscar mensagens do banco de dados com realtime
-      await for (final data in _client
+      // Função helper para buscar mensagens do banco
+      Future<List<Message>> fetchMessages() async {
+        try {
+          final data = await _client
+              .from('messages')
+              .select()
+              .eq('conversation_id', conversationId)
+              .order('created_at', ascending: true);
+          
+          final messages = <Message>[];
+          
+          for (final msg in data) {
+            final senderId = msg['sender_id'];
+            
+            // Cache de perfis para evitar múltiplas consultas
+            if (!profiles.containsKey(senderId)) {
+              try {
+                final profile = await _client
+                    .from('profiles')
+                    .select('name')
+                    .eq('id', senderId)
+                    .single();
+                profiles[senderId] = profile['name'] ?? 'Usuário';
+              } catch (e) {
+                profiles[senderId] = 'Usuário';
+              }
+            }
+            
+            messages.add(Message(
+              id: msg['id'],
+              content: msg['content'] ?? '',
+              senderId: senderId,
+              senderName: profiles[senderId] ?? 'Usuário',
+              createdAt: DateTime.parse(msg['created_at']),
+              imageUrl: msg['file_url'],
+              isFavorite: false,
+              isArchived: false,
+            ));
+          }
+          
+          return messages;
+        } catch (e) {
+          print('⚠️ Erro ao buscar mensagens: $e');
+          return [];
+        }
+      }
+      
+      // Carregar mensagens iniciais
+      print('🔍 Carregando mensagens existentes...');
+      final initialMessages = await fetchMessages();
+      print('✅ Carregadas ${initialMessages.length} mensagens existentes');
+      yield initialMessages;
+      
+      // Stream do Supabase para atualizações em tempo real
+      final supabaseStream = _client
           .from('messages')
           .stream(primaryKey: ['id'])
           .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true)) {
-        
-        final messages = <Message>[];
-        
-        for (final msg in data) {
-          final senderId = msg['sender_id'];
-          
-          // Cache de perfis para evitar múltiplas consultas
-          if (!profiles.containsKey(senderId)) {
-            try {
-              final profile = await _client
-                  .from('profiles')
-                  .select('name')
-                  .eq('id', senderId)
-                  .single();
-              profiles[senderId] = profile['name'] ?? 'Usuário';
-            } catch (e) {
-              profiles[senderId] = 'Usuário';
-            }
-          }
-          
-          messages.add(Message(
-            id: msg['id'],
-            content: msg['content'] ?? '',
-            senderId: senderId,
-            senderName: profiles[senderId] ?? 'Usuário',
-            createdAt: DateTime.parse(msg['created_at']),
-            imageUrl: msg['file_url'],
-            isFavorite: false,
-            isArchived: false,
-          ));
-        }
-        
+          .order('created_at', ascending: true);
+      
+      // Combinar stream do Supabase com sinais de refresh manual
+      await for (final _ in StreamGroup.merge([
+        supabaseStream,
+        refreshController.stream.map((_) => []), // Mapear para lista vazia apenas como trigger
+      ])) {
+        final messages = await fetchMessages();
+        print('🔄 Stream atualizou: ${messages.length} mensagens');
         yield messages;
       }
     } catch (e) {

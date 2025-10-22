@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+        Navigator.of(context).pushReplacementNamed(AppRoutes.conversations);
       }
     } catch (e) {
       if (mounted) {

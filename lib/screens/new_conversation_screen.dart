@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../routes.dart';
+import '../services/supabase_service.dart';
 
 class NewConversationScreen extends StatefulWidget {
   const NewConversationScreen({super.key});
@@ -13,6 +14,14 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
   final TextEditingController _emailController = TextEditingController();
   String _searchQuery = '';
   bool _showEmailInput = false;
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
 
   @override
   void dispose() {
@@ -21,59 +30,74 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _getAvailableUsers() {
-    // Mock de usuários disponíveis - em produção viria do Supabase
-    final allUsers = [
-      {
-        'id': 'ana_silva',
-        'name': 'Ana Silva',
-        'email': 'ana@email.com',
-        'avatar': null,
-      },
-      {
-        'id': 'carlos_santos',
-        'name': 'Carlos Santos',
-        'email': 'carlos@email.com',
-        'avatar': null,
-      },
-      {
-        'id': 'maria_oliveira',
-        'name': 'Maria Oliveira',
-        'email': 'maria@email.com',
-        'avatar': null,
-      },
-      {
-        'id': 'joao_costa',
-        'name': 'João Costa',
-        'email': 'joao@email.com',
-        'avatar': null,
-      },
-      {
-        'id': 'pedro_lima',
-        'name': 'Pedro Lima',
-        'email': 'pedro@email.com',
-        'avatar': null,
-      },
-    ];
-
-    if (_searchQuery.isEmpty) {
-      return allUsers;
+  Future<void> _loadUsers() async {
+    try {
+      final users = await SupabaseService.getAllUsers();
+      if (mounted) {
+        setState(() {
+          _users = users;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao carregar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
     }
-
-    return allUsers.where((user) {
-      return (user['name'] as String).toLowerCase().contains(_searchQuery.toLowerCase()) ||
-             (user['email'] as String).toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
   }
 
+  Future<void> _searchUsers() async {
+    try {
+      final users = await SupabaseService.searchUsers(_searchQuery);
+      if (mounted) {
+        setState(() {
+          _users = users;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao buscar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+
   void _startConversation(Map<String, dynamic> user) {
-    // Em produção, criaria uma nova conversa no Supabase
+    print('🚀 Iniciando conversa com usuário: $user');
+    print('🔑 User ID: ${user['id']}');
+    print('👤 User Name: ${user['name']}');
+    
+    final userId = user['id']?.toString() ?? '';
+    
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erro: ID do usuário não encontrado'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     Navigator.pushNamed(
       context,
       AppRoutes.home,
       arguments: {
         'chatName': user['name'],
-        'userId': user['id'],
+        'userId': userId,
       },
     );
   }
@@ -131,9 +155,8 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
   }
 
   Map<String, dynamic>? _findUserByEmail(String email) {
-    final allUsers = _getAvailableUsers();
     try {
-      return allUsers.firstWhere((user) => 
+      return _users.firstWhere((user) => 
         (user['email'] as String).toLowerCase() == email.toLowerCase());
     } catch (e) {
       return null;
@@ -142,7 +165,6 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final users = _getAvailableUsers();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -218,40 +240,46 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
                       ],
                     ),
                   )
-                : users.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off_rounded,
-                              size: 64,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Nenhum usuário encontrado',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Tente buscar por nome ou email',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: const Color(0xFF9CA3AF),
-                              ),
-                            ),
-                          ],
+                : _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
                         ),
                       )
-                    : ListView.builder(
-                        itemCount: users.length,
-                        itemBuilder: (context, index) {
-                          final user = users[index];
-                          return _buildUserTile(user);
-                        },
-                      ),
+                    : _users.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search_off_rounded,
+                                  size: 64,
+                                  color: Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Nenhum usuário encontrado',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: const Color(0xFF6B7280),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tente buscar por nome ou email',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: const Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _users.length,
+                            itemBuilder: (context, index) {
+                              final user = _users[index];
+                              return _buildUserTile(user);
+                            },
+                          ),
           ),
         ],
       ),
@@ -334,6 +362,7 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         setState(() {
           _searchQuery = value;
         });
+        _searchUsers();
       },
       decoration: InputDecoration(
         hintText: 'Buscar pessoas...',

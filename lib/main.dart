@@ -1,30 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'routes.dart';
+import 'config/supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  String supabaseUrl = 'https://elnyaexmstcwwqsvkgge.supabase.co';
-  String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsbnlhZXhtc3Rjd3dxc3ZrZ2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NTYyMzYsImV4cCI6MjA3NjAzMjIzNn0.D_I9unsTaDE48XrREH5r4bIbBY5fv94MIMOdEFrn9l4';
+  // Usar configuração centralizada
+  SupabaseConfig.printConfig();
   
-  // Try to load .env file only if not on web
-  if (!kIsWeb) {
+  try {
+    // Limpar qualquer instância anterior
     try {
-      await dotenv.load(fileName: ".env");
-      supabaseUrl = dotenv.env['SUPABASE_URL'] ?? supabaseUrl;
-      supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? supabaseAnonKey;
+      await Supabase.instance.dispose();
     } catch (e) {
-      print('Could not load .env file: $e');
+      // Ignorar erro se não houver instância
     }
+    
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.anonKey,
+    );
+    print('✅ Supabase inicializado com sucesso!');
+    
+    // Testar conexão
+    final client = Supabase.instance.client;
+    print('🔍 Testando conexão...');
+    final response = await client.from('profiles').select('count').limit(1);
+    print('✅ Conexão testada com sucesso!');
+    
+  } catch (e) {
+    print('❌ Erro ao inicializar Supabase: $e');
+    print('🔍 Detalhes do erro: ${e.toString()}');
+    rethrow;
   }
-  
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
   
   runApp(const MyApp());
 }
@@ -40,7 +50,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.light,
         fontFamily: 'Inter',
-        primaryColor: const Color(0xFF6366F1), // Índigo suave
+        primaryColor: const Color(0xFF6366F1),
         scaffoldBackgroundColor: const Color(0xFFFAFAFA),
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
@@ -50,9 +60,9 @@ class MyApp extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
         ),
         colorScheme: ColorScheme.light(
-          primary: const Color(0xFF6366F1), // Índigo suave
-          secondary: const Color(0xFF8B5CF6), // Roxo suave
-          tertiary: const Color(0xFF06B6D4), // Ciano suave
+          primary: const Color(0xFF6366F1), 
+          secondary: const Color(0xFF8B5CF6), 
+          tertiary: const Color(0xFF06B6D4), 
           surface: Colors.white,
           background: const Color(0xFFFAFAFA),
           onPrimary: Colors.white,

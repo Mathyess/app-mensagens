@@ -20,6 +20,8 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _conversations = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -50,6 +52,41 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     ));
 
     _fabAnimationController.forward();
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    try {
+      print('🔄 Carregando conversas...');
+      final conversations = await SupabaseService.getConversations();
+      if (mounted) {
+        setState(() {
+          _conversations = conversations;
+          _isLoading = false;
+        });
+        print('✅ ${conversations.length} conversas carregadas');
+      }
+    } catch (e) {
+      print('❌ Erro ao carregar conversas: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao carregar conversas: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recarregar conversas ao voltar para esta tela
+    _loadConversations();
   }
 
   @override
@@ -117,7 +154,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: Text(
-          'Conversas',
+          'Chats',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -139,7 +176,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             padding: const EdgeInsets.all(16),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Buscar conversas...',
+                hintText: 'Search or start new chat',
                 hintStyle: const TextStyle(
                   color: Color(0xFF9CA3AF),
                   fontWeight: FontWeight.w400,
@@ -176,14 +213,47 @@ class _ConversationsScreenState extends State<ConversationsScreen>
           const Divider(height: 1),
           // Lista de conversas
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _getConversations().length,
-              itemBuilder: (context, index) {
-                final conversation = _getConversations()[index];
-                return _buildSimpleConversationTile(conversation);
-              },
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    ),
+                  )
+                : _conversations.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 64,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Nenhuma conversa ainda',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Toque no botão + para iniciar uma conversa',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: _conversations.length,
+                        itemBuilder: (context, index) {
+                          final conversation = _conversations[index];
+                          return _buildSimpleConversationTile(conversation);
+                        },
+                      ),
           ),
         ],
       ),
@@ -301,15 +371,33 @@ class _ConversationsScreenState extends State<ConversationsScreen>
           ],
         ),
         onTap: () {
-          // Abrir conversa individual
-          Navigator.pushNamed(
-            context,
-            AppRoutes.home,
-            arguments: {
-              'chatName': conversation['name'],
-              'userId': conversation['id'],
-            },
-          );
+          // Verificar se temos o ID do outro usuário
+          final otherUserId = conversation['otherUserId'];
+          
+          if (otherUserId != null && otherUserId.toString().isNotEmpty) {
+            print('🚀 Abrindo conversa com userId: $otherUserId');
+            
+            // Abrir conversa individual
+            Navigator.pushNamed(
+              context,
+              AppRoutes.home,
+              arguments: {
+                'chatName': conversation['name'],
+                'userId': otherUserId,
+              },
+            );
+          } else {
+            print('❌ otherUserId vazio ou nulo: $otherUserId');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Não foi possível abrir a conversa - ID do usuário inválido'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        onLongPress: () {
+          _showDeleteDialog(conversation);
         },
       ),
     );
@@ -331,54 +419,115 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     return colors[hash % colors.length];
   }
 
-  List<Map<String, dynamic>> _getConversations() {
-    // Dados mockados - em produção viria do Supabase
-    return [
-      {
-        'id': 'maria_oliveira',
-        'name': 'Maria Oliveira',
-        'lastMessage': 'Obrigada pela ajuda!',
-        'time': '11:45',
-        'avatarUrl': null,
-        'hasUnread': true,
-        'unreadCount': 2,
+  void _showDeleteDialog(Map<String, dynamic> conversation) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.red.shade600,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              const Text('Remover Conversa'),
+            ],
+          ),
+          content: Text(
+            'Tem certeza que deseja remover a conversa com ${conversation['name']}? Esta ação não pode ser desfeita.',
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _removeConversation(conversation);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Remover',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
       },
-      {
-        'id': 'joao_santos',
-        'name': 'João Santos',
-        'lastMessage': 'Vou chegar em 10 minutos',
-        'time': '10:20',
-        'avatarUrl': null,
-        'hasUnread': false,
-        'unreadCount': 0,
-      },
-      {
-        'id': 'ana_silva',
-        'name': 'Ana Silva',
-        'lastMessage': 'Perfeito! Até logo',
-        'time': '09:15',
-        'avatarUrl': null,
-        'hasUnread': false,
-        'unreadCount': 0,
-      },
-      {
-        'id': 'carlos_santos',
-        'name': 'Carlos Santos',
-        'lastMessage': 'Enviei o arquivo para você',
-        'time': 'Ontem',
-        'avatarUrl': null,
-        'hasUnread': true,
-        'unreadCount': 1,
-      },
-      {
-        'id': 'pedro_lima',
-        'name': 'Pedro Lima',
-        'lastMessage': 'Como está o projeto?',
-        'time': 'Ontem',
-        'avatarUrl': null,
-        'hasUnread': false,
-        'unreadCount': 0,
-      },
-    ];
+    );
   }
+
+  Future<void> _removeConversation(Map<String, dynamic> conversation) async {
+    try {
+      await SupabaseService.removeConversation(conversation['id']);
+      
+      // Atualizar a lista local
+      setState(() {
+        _conversations.removeWhere((conv) => conv['id'] == conversation['id']);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Conversa com ${conversation['name']} removida'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Erro ao remover conversa: ${e.toString().replaceFirst('Exception: ', '')}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
 }

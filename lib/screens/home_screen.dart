@@ -7,7 +7,14 @@ import '../widgets/app_drawer.dart';
 import '../routes.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String? userId;
+  final String? chatName;
+
+  const HomeScreen({
+    super.key,
+    this.userId,
+    this.chatName,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -15,11 +22,36 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  String? _cachedUserId;
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Priorizar userId do widget
+    if (widget.userId != null && widget.userId!.isNotEmpty) {
+      _cachedUserId = widget.userId;
+      print('💾 Cache userId do widget: "$_cachedUserId"');
+      return;
+    }
+
+    // Fallback: tentar pegar dos argumentos da rota
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final newUserId = args?['userId'] as String?;
+
+    if (newUserId != null && newUserId.isNotEmpty) {
+      _cachedUserId = newUserId;
+      print('💾 Cache userId dos args: "$_cachedUserId"');
+    } else {
+      print(
+          '⚠️ Nenhum userId encontrado (widget: ${widget.userId}, args: $newUserId)');
+    }
   }
 
   void _scrollToBottom() {
@@ -67,13 +99,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleSendMessage(String content) async {
     try {
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final userId = args?['userId'] as String?;
-      
-      if (userId == null) {
-        throw Exception('Usuário não encontrado');
+
+      print('📨 Enviando mensagem...');
+      print('📦 Args: $args');
+      print('🔑 UserId extraído: "$userId"');
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('Usuário não encontrado ou ID inválido');
       }
-      
+
       await SupabaseService.sendMessage(content, userId);
       _scrollToBottom();
     } catch (e) {
@@ -125,7 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Color(0xFF374151),
             size: 20,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.conversations);
+            }
+          },
         ),
         title: Row(
           children: [
@@ -143,7 +186,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Center(
                 child: Text(
-                  _getChatName().isNotEmpty ? _getChatName()[0].toUpperCase() : '?',
+                  _getChatName().isNotEmpty
+                      ? _getChatName()[0].toUpperCase()
+                      : '?',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -157,8 +202,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text(
                 _getChatName(),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
           ],
@@ -194,147 +239,42 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             Expanded(
-              child: StreamBuilder<List<Message>>(
-                stream: SupabaseService.getMessagesStream(_getUserId()),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    final errorMessage = snapshot.error.toString().replaceFirst('Exception: ', '');
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.error_outline_rounded,
-                                size: 40,
-                                color: Colors.red.shade400,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'Erro ao carregar mensagens',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.red.shade200),
-                              ),
-                              child: Text(
-                                errorMessage,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.red.shade700,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                setState(() {});
-                              },
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Tentar novamente'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+              child: Builder(
+                builder: (context) {
+                  // Priorizar userId do widget
+                  String? userId = widget.userId;
+
+                  // Fallback: tentar pegar dos argumentos
+                  if (userId == null || userId.isEmpty) {
+                    final args = ModalRoute.of(context)?.settings.arguments
+                        as Map<String, dynamic>?;
+                    userId = args?['userId'] as String?;
                   }
 
-                  if (!snapshot.hasData) {
+                  print(
+                      '🔍 Build StreamBuilder - userId do widget: "${widget.userId}", dos args: "${userId}"');
+
+                  if (userId == null || userId.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF6366F1),
-                                  Color(0xFF8B5CF6),
-                                ],
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
+                          Icon(Icons.error_outline,
+                              size: 64, color: Colors.red.shade300),
                           const SizedBox(height: 16),
                           Text(
-                            'Carregando mensagens...',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: const Color(0xFF6B7280),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final messages = snapshot.data!;
-
-                  if (messages.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  const Color(0xFF6366F1).withOpacity(0.1),
-                                  const Color(0xFF8B5CF6).withOpacity(0.1),
-                                ],
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.chat_bubble_outline_rounded,
-                              size: 40,
-                              color: const Color(0xFF9CA3AF),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Nenhuma mensagem ainda',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
+                            'Erro: ID do usuário não encontrado',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Seja o primeiro a enviar uma mensagem!',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: const Color(0xFF6B7280),
+                            'Widget userId: ${widget.userId}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade400,
                             ),
                           ),
                         ],
@@ -342,57 +282,235 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
 
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _scrollToBottom();
-                  });
+                  // Cache para uso posterior
+                  _cachedUserId = userId;
 
-                  return ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      final isMe = message.senderId == currentUser?.id;
-                      
-                      final showDateSeparator = index == messages.length - 1 ||
-                          !_isSameDay(message.createdAt, messages[index + 1].createdAt);
-
-                      return Column(
-                        children: [
-                          if (showDateSeparator)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  _formatDate(message.createdAt),
-                                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: const Color(0xFF6B7280),
-                                    fontWeight: FontWeight.w600,
+                  return StreamBuilder<List<Message>>(
+                    stream: SupabaseService.getMessagesStream(userId),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        final errorMessage = snapshot.error
+                            .toString()
+                            .replaceFirst('Exception: ', '');
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 40,
+                                    color: Colors.red.shade400,
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: 24),
+                                Text(
+                                  'Erro ao carregar mensagens',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border:
+                                        Border.all(color: Colors.red.shade200),
+                                  ),
+                                  child: Text(
+                                    errorMessage,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Colors.red.shade700,
+                                        ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    setState(() {});
+                                  },
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('Tentar novamente'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          MessageBubble(
-                            message: message,
-                            isMe: isMe,
                           ),
-                        ],
+                        );
+                      }
+
+                      if (!snapshot.hasData) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF6366F1),
+                                      Color(0xFF8B5CF6),
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Carregando mensagens...',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final messages = snapshot.data!;
+
+                      if (messages.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFF6366F1).withOpacity(0.1),
+                                      const Color(0xFF8B5CF6).withOpacity(0.1),
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  size: 40,
+                                  color: const Color(0xFF9CA3AF),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Nenhuma mensagem ainda',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Seja o primeiro a enviar uma mensagem!',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _scrollToBottom();
+                      });
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          final isMe = message.senderId == currentUser?.id;
+
+                          final showDateSeparator =
+                              index == messages.length - 1 ||
+                                  !_isSameDay(message.createdAt,
+                                      messages[index + 1].createdAt);
+
+                          return Column(
+                            children: [
+                              if (showDateSeparator)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.9),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      _formatDate(message.createdAt),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            color: const Color(0xFF6B7280),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              MessageBubble(
+                                message: message,
+                                isMe: isMe,
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   );
@@ -409,13 +527,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _getChatName() {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    // Priorizar chatName do widget
+    if (widget.chatName != null && widget.chatName!.isNotEmpty) {
+      return widget.chatName!;
+    }
+
+    // Fallback: tentar pegar dos argumentos
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     return args?['chatName'] as String? ?? 'Conversa';
   }
 
   String _getUserId() {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    return args?['userId'] as String? ?? '';
+    // Usar o cache se disponível
+    if (_cachedUserId != null && _cachedUserId!.isNotEmpty) {
+      return _cachedUserId!;
+    }
+
+    // Caso contrário, buscar dos argumentos
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final userId = args?['userId'] as String? ?? '';
+    print('🔑 HomeScreen - userId recebido: "$userId"');
+    print('📦 HomeScreen - args completos: $args');
+    return userId;
   }
 
   Color _getColorFromName(String name) {
@@ -429,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const Color(0xFFEC4899),
       const Color(0xFF8B5CF6),
     ];
-    
+
     final hash = name.hashCode.abs();
     return colors[hash % colors.length];
   }

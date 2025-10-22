@@ -37,7 +37,14 @@ class AppRoutes {
       case newConversation:
         return MaterialPageRoute(builder: (_) => const NewConversationScreen());
       case home:
-        return MaterialPageRoute(builder: (_) => const HomeScreen());
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => HomeScreen(
+            userId: args?['userId'] as String?,
+            chatName: args?['chatName'] as String?,
+          ),
+          settings: settings,
+        );
       case profile:
         return MaterialPageRoute(builder: (_) => const SimpleProfileScreen());
       case '/settings':

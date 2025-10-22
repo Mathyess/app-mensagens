@@ -1,8 +1,24 @@
-# App Mensagens
+# WeTalk 💜
 
-Um aplicativo de mensagens em tempo real construído com Flutter e Supabase.
+Um aplicativo de mensagens em tempo real moderno e elegante, construído com Flutter e Supabase.
 
-## Configuração
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
+
+## 📖 Sobre
+
+WeTalk é um aplicativo de mensagens instantâneas moderno, desenvolvido com Flutter e Supabase, que oferece comunicação em tempo real com uma interface elegante e intuitiva. Com foco na simplicidade e performance, o WeTalk permite que você converse com seus contatos de forma rápida e segura.
+
+### 🌟 Destaques
+
+- **💬 Mensagens em Tempo Real**: Receba e envie mensagens instantaneamente
+- **🎨 Design Moderno**: Interface elegante com tema roxo e experiência fluida
+- **🔒 Segurança**: Autenticação robusta e políticas de segurança no banco de dados
+- **⚡ Performance**: Atualização otimizada de mensagens com streams eficientes
+- **📱 Multiplataforma**: Funciona em web, mobile e desktop
+
+## ⚙️ Configuração
 
 ### 1. Instalar dependências
 
@@ -123,24 +139,79 @@ lib/
 └── main.dart        # Ponto de entrada
 ```
 
-## Funcionalidades
+## ✨ Funcionalidades
 
-- ✅ Autenticação de usuários (login/registro)
-- ✅ Conversas individuais por usuário
-- ✅ Histórico de mensagens separado por conversa
-- ✅ Envio de mensagens em tempo real
-- ✅ Adicionar contatos por email
-- ✅ Interface responsiva e moderna
-- ✅ Integração com Supabase
-- ✅ Gerenciamento de estado
-- ✅ Navegação entre telas
+### 🔐 Autenticação
+- ✅ Login e cadastro de usuários
+- ✅ Confirmação de email com mensagem amigável
+- ✅ Gerenciamento seguro de sessão
+
+### 💬 Mensagens
+- ✅ Envio e recebimento de mensagens em tempo real
+- ✅ Atualização instantânea do histórico de mensagens
+- ✅ Ordenação correta das mensagens (mais antigas em cima, mais recentes em baixo)
+- ✅ Scroll automático para mensagens novas
+- ✅ Indicador visual de mensagens enviadas/recebidas
+- ✅ Formatação de hora das mensagens
+
+### 👥 Conversas
+- ✅ Lista de conversas com preview da última mensagem
+- ✅ Busca de conversas
+- ✅ Adicionar novos contatos por email
+- ✅ Avatar com gradiente personalizado para cada usuário
 - ✅ Sistema de conversas individuais
 
-## Próximos Passos
+### 🎨 Interface
+- ✅ Design moderno com tema roxo elegante
+- ✅ Interface responsiva e fluida
+- ✅ Animações suaves
+- ✅ Tela de perfil simplificada
+- ✅ Campo de mensagem minimalista (apenas texto e enviar)
 
-- [ ] Upload de imagens
-- [ ] Notificações push
-- [ ] Grupos de conversa
-- [ ] Busca de mensagens
+### 🔧 Técnico
+- ✅ Integração completa com Supabase
+- ✅ Real-time subscriptions para atualizações instantâneas
+- ✅ Row Level Security (RLS) configurado
+- ✅ Gerenciamento eficiente de estado
+- ✅ Suporte para web e mobile
+
+## 🚀 Próximos Passos
+
+- [ ] Implementar upload de imagens nas mensagens
+- [ ] Adicionar notificações push
+- [ ] Criar grupos de conversa
+- [ ] Sistema de busca de mensagens
 - [ ] Mensagens de voz
 - [ ] Compartilhamento de arquivos
+- [ ] Status online/offline dos usuários
+- [ ] Indicador de "digitando..."
+- [ ] Confirmação de leitura de mensagens
+- [ ] Temas personalizáveis
+
+## 🎨 Design
+
+O WeTalk possui um design moderno e elegante com as seguintes características:
+
+- **Paleta de cores**: Roxo como cor primária (#8B5CF6), com tons escuros para o fundo
+- **Tipografia**: Sans-serif moderna e legível
+- **Componentes**: Cards arredondados, botões com feedback visual, inputs com foco destacado
+- **Experiência**: Interface limpa e minimalista, focada na comunicação
+
+## 📱 Plataformas Suportadas
+
+- ✅ Web (Chrome, Firefox, Safari, Edge)
+- ✅ Android (em desenvolvimento)
+- ✅ iOS (em desenvolvimento)
+- ✅ Windows (em desenvolvimento)
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull requests.
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## 👨‍💻 Autor
+
+Desenvolvido com 💜 por [Mathyes](https://github.com/Mathyess)

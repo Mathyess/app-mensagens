@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/conversation_tile.dart';
-import '../widgets/app_drawer.dart';
 import '../services/supabase_service.dart';
 import '../routes.dart';
 import '../theme/matrix_theme.dart';
@@ -12,63 +10,27 @@ class ConversationsScreen extends StatefulWidget {
   State<ConversationsScreen> createState() => _ConversationsScreenState();
 }
 
-class _ConversationsScreenState extends State<ConversationsScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _fabAnimationController;
-  late AnimationController _searchAnimationController;
-  late Animation<double> _fabAnimation;
-  late Animation<double> _searchAnimation;
-
-  bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
+class _ConversationsScreenState extends State<ConversationsScreen> {
   List<Map<String, dynamic>> _conversations = [];
   bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _searchAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
-    _fabAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fabAnimationController,
-      curve: Curves.elasticOut,
-    ));
-
-    _searchAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _searchAnimationController,
-      curve: Curves.easeInOut,
-    ));
-
-    _fabAnimationController.forward();
     _loadConversations();
   }
 
   Future<void> _loadConversations() async {
     try {
-      print('🔄 Carregando conversas...');
       final conversations = await SupabaseService.getConversations();
       if (mounted) {
         setState(() {
           _conversations = conversations;
           _isLoading = false;
         });
-        print('✅ ${conversations.length} conversas carregadas');
       }
     } catch (e) {
-      print('❌ Erro ao carregar conversas: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -77,6 +39,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
           SnackBar(
             content: Text('Erro ao carregar conversas: ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -86,61 +49,13 @@ class _ConversationsScreenState extends State<ConversationsScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Recarregar conversas ao voltar para esta tela
     _loadConversations();
   }
 
   @override
   void dispose() {
-    _fabAnimationController.dispose();
-    _searchAnimationController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _isSearching = !_isSearching;
-      if (_isSearching) {
-        _searchAnimationController.forward();
-      } else {
-        _searchAnimationController.reverse();
-        _searchController.clear();
-      }
-    });
-  }
-
-  Future<void> _handleLogout() async {
-    try {
-      await SupabaseService.signOut();
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Erro ao sair: ${e.toString().replaceFirst('Exception: ', '')}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -149,82 +64,66 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     final userName = currentUser?.userMetadata?['name'] ?? 'Usuário';
 
     return Scaffold(
-      backgroundColor: MatrixTheme.matrixBlack,
+      backgroundColor: MatrixTheme.darkBackground,
       appBar: AppBar(
-        backgroundColor: MatrixTheme.matrixBlack,
+        backgroundColor: MatrixTheme.darkBackground,
         elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          '>> MATRIX_CHAT_SYSTEM_',
-          style: TextStyle(
-            color: MatrixTheme.matrixGreen,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            fontFamily: 'Courier',
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Mensagens',
+              style: TextStyle(
+                color: MatrixTheme.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              userName,
+              style: const TextStyle(
+                color: MatrixTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.account_circle,
-              color: MatrixTheme.matrixGreen,
-            ),
+            icon: const Icon(Icons.person_outline_rounded, color: MatrixTheme.textPrimary),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Campo de busca Matrix
-          Container(
+          // Campo de busca
+          Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
-              style: const TextStyle(
-                color: MatrixTheme.matrixGreen,
-                fontFamily: 'Courier',
-              ),
+              controller: _searchController,
+              style: const TextStyle(color: MatrixTheme.textPrimary),
               decoration: InputDecoration(
-                hintText: '> search_connections...',
-                hintStyle: const TextStyle(
-                  color: MatrixTheme.matrixDimGreen,
-                  fontFamily: 'Courier',
-                ),
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: MatrixTheme.matrixGreen,
-                  size: 20,
-                ),
+                hintText: 'Buscar conversas...',
+                hintStyle: const TextStyle(color: MatrixTheme.textTertiary),
+                prefixIcon: const Icon(Icons.search_rounded, color: MatrixTheme.textTertiary),
                 filled: true,
-                fillColor: MatrixTheme.matrixGray,
+                fillColor: MatrixTheme.cardBackground,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: const BorderSide(color: MatrixTheme.matrixDimGreen),
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: const BorderSide(color: MatrixTheme.matrixDimGreen),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: const BorderSide(
-                    color: MatrixTheme.matrixGreen,
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
-          Divider(height: 1, color: MatrixTheme.matrixGreen.withOpacity(0.3)),
           // Lista de conversas
           Expanded(
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.matrixGreen),
+                      valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.primaryPurple),
                     ),
                   )
                 : _conversations.isEmpty
@@ -232,37 +131,45 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.terminal,
-                              size: 64,
-                              color: MatrixTheme.matrixGreen,
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: MatrixTheme.cardBackground,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.forum_outlined,
+                                size: 40,
+                                color: MatrixTheme.primaryPurple,
+                              ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
                             const Text(
-                              '> NO_CONNECTIONS_FOUND',
+                              'Nenhuma conversa',
                               style: TextStyle(
-                                color: MatrixTheme.matrixGreen,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Courier',
+                                color: MatrixTheme.textPrimary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              'Toque no botão + para iniciar uma conversa',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: const Color(0xFF9CA3AF),
+                            const Text(
+                              'Toque no + para começar uma conversa',
+                              style: TextStyle(
+                                color: MatrixTheme.textSecondary,
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: _conversations.length,
                         itemBuilder: (context, index) {
                           final conversation = _conversations[index];
-                          return _buildSimpleConversationTile(conversation);
+                          return _buildConversationTile(conversation);
                         },
                       ),
           ),
@@ -272,61 +179,56 @@ class _ConversationsScreenState extends State<ConversationsScreen>
         onPressed: () {
           Navigator.pushNamed(context, AppRoutes.newConversation);
         },
-        backgroundColor: MatrixTheme.matrixGreen,
-        foregroundColor: MatrixTheme.matrixBlack,
-        elevation: 0,
-        child: const Icon(Icons.add, size: 32),
+        backgroundColor: MatrixTheme.primaryPurple,
+        elevation: 4,
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }
 
-  Widget _buildSimpleConversationTile(Map<String, dynamic> conversation) {
+  Widget _buildConversationTile(Map<String, dynamic> conversation) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF3F4F6)),
+        color: MatrixTheme.cardBackground,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getColorFromName(conversation['name']),
-                    _getColorFromName(conversation['name']).withOpacity(0.7),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-              child: Text(
-                (conversation['name'] as String)[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        leading: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _getColorFromName(conversation['name']),
+                _getColorFromName(conversation['name']).withOpacity(0.7),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Center(
+            child: Text(
+              (conversation['name'] as String)[0].toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
+          ),
         ),
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
               child: Text(
                 conversation['name'] as String,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: (conversation['hasUnread'] as bool) 
-                      ? FontWeight.w600 
-                      : FontWeight.w500,
+                style: const TextStyle(
+                  color: MatrixTheme.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -334,13 +236,9 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             ),
             Text(
               conversation['time'] as String,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: (conversation['hasUnread'] as bool)
-                    ? const Color(0xFF6366F1)
-                    : const Color(0xFF9CA3AF),
-                fontWeight: (conversation['hasUnread'] as bool)
-                    ? FontWeight.w600
-                    : FontWeight.w400,
+              style: const TextStyle(
+                color: MatrixTheme.textTertiary,
+                fontSize: 12,
               ),
             ),
           ],
@@ -350,13 +248,14 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             Expanded(
               child: Text(
                 conversation['lastMessage'] as String,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: TextStyle(
                   color: (conversation['hasUnread'] as bool)
-                      ? const Color(0xFF374151)
-                      : const Color(0xFF6B7280),
+                      ? MatrixTheme.textSecondary
+                      : MatrixTheme.textTertiary,
+                  fontSize: 14,
                   fontWeight: (conversation['hasUnread'] as bool)
                       ? FontWeight.w500
-                      : FontWeight.w400,
+                      : FontWeight.normal,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -367,7 +266,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                 margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1),
+                  color: MatrixTheme.primaryPurple,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -375,20 +274,16 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
           ],
         ),
         onTap: () {
-          // Verificar se temos o ID do outro usuário
           final otherUserId = conversation['otherUserId'];
           
           if (otherUserId != null && otherUserId.toString().isNotEmpty) {
-            print('🚀 Abrindo conversa com userId: $otherUserId');
-            
-            // Abrir conversa individual
             Navigator.pushNamed(
               context,
               AppRoutes.home,
@@ -396,14 +291,6 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                 'chatName': conversation['name'],
                 'userId': otherUserId,
               },
-            );
-          } else {
-            print('❌ otherUserId vazio ou nulo: $otherUserId');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Não foi possível abrir a conversa - ID do usuário inválido'),
-                backgroundColor: Colors.red,
-              ),
             );
           }
         },
@@ -416,14 +303,12 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
   Color _getColorFromName(String name) {
     final colors = [
-      const Color(0xFF6366F1),
-      const Color(0xFF8B5CF6),
+      MatrixTheme.primaryPurple,
       const Color(0xFF06B6D4),
       const Color(0xFF10B981),
       const Color(0xFFF59E0B),
       const Color(0xFFEF4444),
       const Color(0xFFEC4899),
-      const Color(0xFF8B5CF6),
     ];
     
     final hash = name.hashCode.abs();
@@ -435,33 +320,27 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: MatrixTheme.cardBackground,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.delete_outline_rounded,
-                color: Colors.red.shade600,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              const Text('Remover Conversa'),
-            ],
+          title: const Text(
+            'Remover Conversa',
+            style: TextStyle(color: MatrixTheme.textPrimary),
           ),
           content: Text(
-            'Tem certeza que deseja remover a conversa com ${conversation['name']}? Esta ação não pode ser desfeita.',
-            style: const TextStyle(fontSize: 16),
+            'Tem certeza que deseja remover a conversa com ${conversation['name']}?',
+            style: const TextStyle(
+              fontSize: 16,
+              color: MatrixTheme.textSecondary,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(
+              child: const Text(
                 'Cancelar',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(color: MatrixTheme.textSecondary),
               ),
             ),
             ElevatedButton(
@@ -470,16 +349,12 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                 await _removeConversation(conversation);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.red,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Remover',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
+              child: const Text('Remover'),
             ),
           ],
         );
@@ -491,7 +366,6 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     try {
       await SupabaseService.removeConversation(conversation['id']);
       
-      // Atualizar a lista local
       setState(() {
         _conversations.removeWhere((conv) => conv['id'] == conversation['id']);
       });
@@ -499,18 +373,9 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Text('Conversa com ${conversation['name']} removida'),
-              ],
-            ),
+            content: Text('Conversa com ${conversation['name']} removida'),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
@@ -518,27 +383,13 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Erro ao remover conversa: ${e.toString().replaceFirst('Exception: ', '')}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
+            content: Text('Erro ao remover conversa: ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
     }
   }
-
 }
+

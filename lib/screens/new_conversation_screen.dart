@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../routes.dart';
 import '../services/supabase_service.dart';
+import '../theme/matrix_theme.dart';
 
 class NewConversationScreen extends StatefulWidget {
   const NewConversationScreen({super.key});
@@ -11,9 +12,7 @@ class NewConversationScreen extends StatefulWidget {
 
 class _NewConversationScreenState extends State<NewConversationScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
   String _searchQuery = '';
-  bool _showEmailInput = false;
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
 
@@ -26,7 +25,6 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
   @override
   void dispose() {
     _searchController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -48,6 +46,7 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
           SnackBar(
             content: Text('Erro ao carregar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -68,18 +67,14 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
           SnackBar(
             content: Text('Erro ao buscar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     }
   }
 
-
   void _startConversation(Map<String, dynamic> user) {
-    print('🚀 Iniciando conversa com usuário: $user');
-    print('🔑 User ID: ${user['id']}');
-    print('👤 User Name: ${user['name']}');
-    
     final userId = user['id']?.toString() ?? '';
     
     if (userId.isEmpty) {
@@ -87,6 +82,7 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         const SnackBar(
           content: Text('Erro: ID do usuário não encontrado'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -102,184 +98,117 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
     );
   }
 
-  void _addUserByEmail() {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, digite um email válido'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, digite um email válido'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Simular busca de usuário por email
-    final user = _findUserByEmail(email);
-    if (user != null) {
-      _startConversation(user);
-    } else {
-      // Se não encontrar, criar um usuário temporário
-      final newUser = {
-        'id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
-        'name': email.split('@')[0], // Usar parte antes do @ como nome
-        'email': email,
-        'avatar': null,
-      };
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Usuário não encontrado. Iniciando conversa com $email'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      
-      _startConversation(newUser);
-    }
-
-    // Limpar e esconder o campo de email
-    _emailController.clear();
-    setState(() {
-      _showEmailInput = false;
-    });
-  }
-
-  Map<String, dynamic>? _findUserByEmail(String email) {
-    try {
-      return _users.firstWhere((user) => 
-        (user['email'] as String).toLowerCase() == email.toLowerCase());
-    } catch (e) {
-      return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: MatrixTheme.darkBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: MatrixTheme.darkBackground,
         elevation: 0,
-        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(
-            Icons.arrow_back_ios_rounded,
-            color: Color(0xFF374151),
-            size: 20,
+            Icons.arrow_back_rounded,
+            color: MatrixTheme.textPrimary,
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Nova Conversa',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          style: TextStyle(
+            color: MatrixTheme.textPrimary,
             fontWeight: FontWeight.w600,
+            fontSize: 20,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _showEmailInput ? Icons.close : Icons.person_add_rounded,
-              color: const Color(0xFF374151),
-            ),
-            onPressed: () {
-              setState(() {
-                _showEmailInput = !_showEmailInput;
-                if (!_showEmailInput) {
-                  _emailController.clear();
-                }
-              });
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // Campo de busca ou email
-          Container(
+          // Campo de busca
+          Padding(
             padding: const EdgeInsets.all(16),
-            child: _showEmailInput ? _buildEmailInput() : _buildSearchInput(),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+                _searchUsers();
+              },
+              style: const TextStyle(color: MatrixTheme.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Buscar pessoas...',
+                hintStyle: const TextStyle(color: MatrixTheme.textTertiary),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: MatrixTheme.textTertiary,
+                ),
+                filled: true,
+                fillColor: MatrixTheme.cardBackground,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
           ),
-          const Divider(height: 1),
           // Lista de usuários
           Expanded(
-            child: _showEmailInput
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.email_rounded,
-                          size: 64,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Adicionar por Email',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: const Color(0xFF6B7280),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Digite o email do usuário acima',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ],
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.primaryPurple),
                     ),
                   )
-                : _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                : _users.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: MatrixTheme.cardBackground,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.person_search_rounded,
+                                size: 40,
+                                color: MatrixTheme.primaryPurple,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              'Nenhum usuário encontrado',
+                              style: TextStyle(
+                                color: MatrixTheme.textPrimary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Tente buscar por nome ou email',
+                              style: TextStyle(
+                                color: MatrixTheme.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       )
-                    : _users.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.search_off_rounded,
-                                  size: 64,
-                                  color: Colors.grey.shade300,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Nenhum usuário encontrado',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: const Color(0xFF6B7280),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tente buscar por nome ou email',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: const Color(0xFF9CA3AF),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _users.length,
-                            itemBuilder: (context, index) {
-                              final user = _users[index];
-                              return _buildUserTile(user);
-                            },
-                          ),
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _users.length,
+                        itemBuilder: (context, index) {
+                          final user = _users[index];
+                          return _buildUserTile(user);
+                        },
+                      ),
           ),
         ],
       ),
@@ -288,64 +217,64 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
 
   Widget _buildUserTile(Map<String, dynamic> user) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF3F4F6)),
+        color: MatrixTheme.cardBackground,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getColorFromName(user['name']),
-                    _getColorFromName(user['name']).withOpacity(0.7),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-              child: Text(
-                (user['name'] as String)[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        leading: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _getColorFromName(user['name']),
+                _getColorFromName(user['name']).withOpacity(0.7),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Center(
+            child: Text(
+              (user['name'] as String)[0].toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
+          ),
         ),
         title: Text(
           user['name'] as String,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          style: const TextStyle(
+            color: MatrixTheme.textPrimary,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
         ),
         subtitle: Text(
           user['email'] as String,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF6B7280),
+          style: const TextStyle(
+            color: MatrixTheme.textTertiary,
+            fontSize: 14,
           ),
         ),
         trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1),
-            borderRadius: BorderRadius.circular(20),
+            color: MatrixTheme.primaryPurple,
+            borderRadius: BorderRadius.circular(12),
           ),
           child: const Text(
-            'Conversar',
+            'Chat',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -355,122 +284,14 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
     );
   }
 
-  Widget _buildSearchInput() {
-    return TextField(
-      controller: _searchController,
-      onChanged: (value) {
-        setState(() {
-          _searchQuery = value;
-        });
-        _searchUsers();
-      },
-      decoration: InputDecoration(
-        hintText: 'Buscar pessoas...',
-        hintStyle: const TextStyle(
-          color: Color(0xFF9CA3AF),
-          fontWeight: FontWeight.w400,
-        ),
-        prefixIcon: const Icon(
-          Icons.search_rounded,
-          color: Color(0xFF9CA3AF),
-          size: 20,
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFF6366F1),
-            width: 2,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmailInput() {
-    return Column(
-      children: [
-        TextField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            hintText: 'Digite o email do usuário...',
-            hintStyle: const TextStyle(
-              color: Color(0xFF9CA3AF),
-              fontWeight: FontWeight.w400,
-            ),
-            prefixIcon: const Icon(
-              Icons.email_rounded,
-              color: Color(0xFF9CA3AF),
-              size: 20,
-            ),
-            filled: true,
-            fillColor: const Color(0xFFF9FAFB),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFF6366F1),
-                width: 2,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _addUserByEmail,
-            icon: const Icon(Icons.person_add_rounded, size: 18),
-            label: const Text('Adicionar por Email'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Color _getColorFromName(String name) {
     final colors = [
-      const Color(0xFF6366F1),
-      const Color(0xFF8B5CF6),
+      MatrixTheme.primaryPurple,
       const Color(0xFF06B6D4),
       const Color(0xFF10B981),
       const Color(0xFFF59E0B),
       const Color(0xFFEF4444),
       const Color(0xFFEC4899),
-      const Color(0xFF8B5CF6),
     ];
     
     final hash = name.hashCode.abs();

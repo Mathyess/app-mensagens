@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../routes.dart';
+import '../theme/matrix_theme.dart';
 
 class SimpleProfileScreen extends StatefulWidget {
   const SimpleProfileScreen({super.key});
@@ -124,207 +125,155 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
     final userEmail = currentUser?.email ?? '';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: MatrixTheme.darkBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: MatrixTheme.darkBackground,
         elevation: 0,
-        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_rounded,
-            color: Color(0xFF374151),
-            size: 20,
-          ),
+          icon: const Icon(Icons.arrow_back_rounded, color: MatrixTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Perfil',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          style: TextStyle(
+            color: MatrixTheme.textPrimary,
             fontWeight: FontWeight.w600,
+            fontSize: 20,
           ),
         ),
-        actions: [
-          if (_isEditing)
-            TextButton(
-              onPressed: _updateProfile,
-              child: const Text(
-                'Salvar',
-                style: TextStyle(
-                  color: Color(0xFF6366F1),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isEditing = true;
-                });
-              },
-              child: const Text(
-                'Editar',
-                style: TextStyle(
-                  color: Color(0xFF6366F1),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Avatar e nome
-            Column(
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFF6366F1),
-                        Color(0xFF8B5CF6),
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (_isEditing)
-                  TextField(
-                    controller: _nameController,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF6366F1),
-                          width: 2,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                  )
-                else
-                  Text(
-                    userName,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                Text(
-                  userEmail,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF6B7280),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 48),
-            // Opções do perfil
+            const SizedBox(height: 20),
+            // Avatar grande
             Container(
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF3F4F6)),
-              ),
-              child: Column(
-                children: [
-                  _buildProfileOption(
-                    icon: Icons.person_outline_rounded,
-                    title: 'Editar perfil',
-                    subtitle: 'Alterar nome e informações',
-                    onTap: () {
-                      setState(() {
-                        _isEditing = true;
-                      });
-                    },
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildProfileOption(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notificações',
-                    subtitle: 'Gerenciar notificações',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Configurações de notificação em desenvolvimento'),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildProfileOption(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Ajuda',
-                    subtitle: 'Central de ajuda e suporte',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.help),
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildProfileOption(
-                    icon: Icons.info_outline_rounded,
-                    title: 'Sobre',
-                    subtitle: 'Informações do aplicativo',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                gradient: const LinearGradient(
+                  colors: [
+                    MatrixTheme.primaryPurple,
+                    MatrixTheme.lightPurple,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: MatrixTheme.primaryPurple.withOpacity(0.4),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
+              child: Center(
+                child: Text(
+                  userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
-            // Botão de sair
+            
+            // Email
+            Text(
+              userEmail,
+              style: const TextStyle(
+                color: MatrixTheme.textSecondary,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 60),
+            
+            // Campo de nome
+            TextField(
+              controller: _nameController,
+              style: const TextStyle(
+                color: MatrixTheme.textPrimary,
+                fontSize: 16,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Nome',
+                labelStyle: const TextStyle(
+                  color: MatrixTheme.textSecondary,
+                  fontSize: 14,
+                ),
+                hintText: 'Digite seu nome',
+                hintStyle: const TextStyle(color: MatrixTheme.textTertiary),
+                prefixIcon: const Icon(
+                  Icons.person_outline_rounded,
+                  color: MatrixTheme.primaryPurple,
+                ),
+                filled: true,
+                fillColor: MatrixTheme.cardBackground,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: MatrixTheme.primaryPurple,
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Botão salvar nome
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _updateProfile,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MatrixTheme.primaryPurple,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Salvar Alterações',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+            
+            // Botão sair
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: OutlinedButton.icon(
                 onPressed: _logout,
                 icon: const Icon(Icons.logout_rounded),
-                label: const Text('Sair da conta'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade50,
+                label: const Text(
+                  'Sair da Conta',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: Colors.red, width: 2),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.red.shade200),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
@@ -332,48 +281,6 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildProfileOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF3F4F6),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          color: const Color(0xFF6B7280),
-          size: 20,
-        ),
-      ),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: const Color(0xFF6B7280),
-        ),
-      ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios_rounded,
-        color: Color(0xFF9CA3AF),
-        size: 16,
-      ),
-      onTap: onTap,
     );
   }
 }

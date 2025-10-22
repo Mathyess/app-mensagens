@@ -107,7 +107,6 @@ class _ArchivedScreenState extends State<ArchivedScreen> {
                       return MessageBubble(
                         message: message,
                         isMe: isMe,
-                        onArchivedToggled: _loadArchived,
                       );
                     },
                   ),

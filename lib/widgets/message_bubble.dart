@@ -141,6 +141,34 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _toggleArchived();
               },
             ),
+            if (widget.isMe && !widget.message.isDeleted) ...[
+              if (widget.message.canBeEdited())
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Editar'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _editMessage();
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Deletar', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteMessage();
+                },
+              ),
+            ],
+            if (!widget.message.isDeleted)
+              ListTile(
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: const Text('Adicionar reação'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showReactionPicker();
+                },
+              ),
           ],
         ),
       ),
@@ -235,16 +263,45 @@ class _MessageBubbleState extends State<MessageBubble> {
                             ),
                           ),
                         ),
+                      // Mostrar imagem se existir
+                      if (widget.message.imageUrl != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            widget.message.imageUrl!,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                child: const Icon(Icons.broken_image, size: 48),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
-                              widget.message.content,
+                              widget.message.isDeleted 
+                                  ? 'Esta mensagem foi deletada'
+                                  : widget.message.content,
                               style: TextStyle(
                                 fontSize: 15,
-                                color: widget.isMe ? Colors.white : const Color(0xFF374151),
+                                color: widget.isMe 
+                                    ? (widget.message.isDeleted 
+                                        ? Colors.white.withOpacity(0.6)
+                                        : Colors.white)
+                                    : (widget.message.isDeleted
+                                        ? const Color(0xFF9CA3AF)
+                                        : const Color(0xFF374151)),
                                 height: 1.4,
+                                fontStyle: widget.message.isDeleted 
+                                    ? FontStyle.italic 
+                                    : FontStyle.normal,
                               ),
                             ),
                           ),
@@ -258,6 +315,53 @@ class _MessageBubbleState extends State<MessageBubble> {
                           ],
                         ],
                       ),
+                      // Mostrar reações se existirem
+                      if (widget.message.reactions != null && widget.message.reactions!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: widget.message.reactions!.entries.map((entry) {
+                            final emoji = entry.key;
+                            final userIds = entry.value;
+                            final currentUserId = SupabaseService.currentUser?.id;
+                            final hasReacted = currentUserId != null && userIds.contains(currentUserId);
+                            
+                            return GestureDetector(
+                              onTap: () => _toggleReaction(emoji),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: hasReacted 
+                                      ? const Color(0xFF6366F1).withOpacity(0.2)
+                                      : Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: hasReacted
+                                      ? Border.all(color: const Color(0xFF6366F1), width: 1)
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(emoji, style: const TextStyle(fontSize: 14)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      userIds.length.toString(),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: hasReacted 
+                                            ? const Color(0xFF6366F1)
+                                            : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -273,6 +377,19 @@ class _MessageBubbleState extends State<MessageBubble> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (widget.message.isEdited && !widget.message.isDeleted) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              'editado',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: widget.isMe
+                                    ? Colors.white.withOpacity(0.6)
+                                    : const Color(0xFF9CA3AF),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
                           if (widget.isMe) ...[
                             const SizedBox(width: 6),
                             Icon(
@@ -312,8 +429,157 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   String _formatTime(DateTime dateTime) {
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
+    // Garantir que está no fuso horário local
+    final localTime = dateTime.isUtc ? dateTime.toLocal() : dateTime;
+    final hour = localTime.hour.toString().padLeft(2, '0');
+    final minute = localTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  Future<void> _toggleReaction(String emoji) async {
+    try {
+      await SupabaseService.toggleReaction(widget.message.id, emoji);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao atualizar reação: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showReactionPicker() {
+    final emojis = ['👍', '❤️', '😄', '😮', '😢', '🙏'];
+    
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          alignment: WrapAlignment.center,
+          children: emojis.map((emoji) {
+            return GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                _toggleReaction(emoji);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 32),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _editMessage() {
+    final controller = TextEditingController(text: widget.message.content);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar mensagem'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newContent = controller.text.trim();
+              if (newContent.isNotEmpty) {
+                try {
+                  await SupabaseService.editMessage(widget.message.id, newContent);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Mensagem editada com sucesso!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erro ao editar: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteMessage() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Deletar mensagem'),
+        content: const Text('Tem certeza que deseja deletar esta mensagem?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await SupabaseService.deleteMessage(widget.message.id);
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mensagem deletada'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erro ao deletar: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Deletar'),
+          ),
+        ],
+      ),
+    );
   }
 }

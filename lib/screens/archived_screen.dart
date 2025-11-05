@@ -49,56 +49,87 @@ class _ArchivedScreenState extends State<ArchivedScreen> {
     final currentUserId = SupabaseService.currentUser?.id;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        title: Text('Mensagens Arquivadas'),
-        elevation: 1,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Color(0xFF374151),
+            size: 20,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Mensagens Arquivadas',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+              ),
+            )
           : _archived.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.archive_outlined,
-                        size: 80,
-                        color: Colors.grey[300],
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF6366F1).withOpacity(0.1),
+                              const Color(0xFF8B5CF6).withOpacity(0.1),
+                            ],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.archive_outlined,
+                          size: 40,
+                          color: const Color(0xFF9CA3AF),
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       Text(
                         'Nenhuma mensagem arquivada',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Pressione e segure uma mensagem\npara arquivá-la',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: const Color(0xFF6B7280),
                         ),
                       ),
                     ],
                   ),
                 )
               : Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFECE5DD),
-                    image: DecorationImage(
-                      image: NetworkImage(
-                        'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png',
-                      ),
-                      fit: BoxFit.cover,
-                      opacity: 0.05,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFFAFAFA),
+                        Color(0xFFF3F4F6),
+                      ],
                     ),
                   ),
                   child: ListView.builder(
                     reverse: false,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     itemCount: _archived.length,
                     itemBuilder: (context, index) {
                       final message = _archived[index];

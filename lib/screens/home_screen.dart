@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
@@ -23,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _cachedUserId;
+  String? _cachedConversationId;
+  Map<String, bool> _typingUsers = {};
 
   @override
   void dispose() {
@@ -57,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        0,
+        _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -458,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       return ListView.builder(
                         controller: _scrollController,
-                        reverse: true,
+                        reverse: false,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
@@ -466,9 +469,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           final isMe = message.senderId == currentUser?.id;
 
                           final showDateSeparator =
-                              index == messages.length - 1 ||
+                              index == 0 ||
                                   !_isSameDay(message.createdAt,
-                                      messages[index + 1].createdAt);
+                                      messages[index - 1].createdAt);
 
                           return Column(
                             children: [
@@ -519,6 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             MessageInput(
               onSendMessage: _handleSendMessage,
+              recipientId: _getUserId(),
             ),
           ],
         ),
@@ -570,23 +574,99 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
+    // Garantir que ambas estão no fuso horário local
+    final localDate1 = date1.isUtc ? date1.toLocal() : date1;
+    final localDate2 = date2.isUtc ? date2.toLocal() : date2;
+    
+    return localDate1.year == localDate2.year &&
+        localDate1.month == localDate2.month &&
+        localDate1.day == localDate2.day;
   }
 
   String _formatDate(DateTime date) {
+    // Garantir que está no fuso horário local
+    final localDate = date.isUtc ? date.toLocal() : date;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    final messageDate = DateTime(date.year, date.month, date.day);
+    final messageDate = DateTime(localDate.year, localDate.month, localDate.day);
 
     if (messageDate == today) {
       return 'HOJE';
     } else if (messageDate == yesterday) {
       return 'ONTEM';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      // Formato: "Segunda-feira, 15 de Janeiro de 2024"
+      final weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 
+                       'Quinta-feira', 'Sexta-feira', 'Sábado'];
+      final months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      
+      final weekday = weekdays[localDate.weekday % 7];
+      final month = months[localDate.month - 1];
+      
+      return '$weekday, ${localDate.day} de $month de ${localDate.year}';
+    }
+  }
+
+  Future<void> _loadConversationId(String userId) async {
+    if (_cachedConversationId != null) {
+      _listenToTypingIndicators(_cachedConversationId!);
+      return;
+    }
+
+    try {
+      final user = SupabaseService.currentUser;
+      if (user == null) return;
+
+      final client = Supabase.instance.client;
+      final conversationId = await client.rpc(
+        'create_direct_conversation',
+        params: {
+          'user1_id': user.id,
+          'user2_id': userId,
+        },
+      );
+
+      _cachedConversationId = conversationId;
+      _listenToTypingIndicators(conversationId);
+    } catch (e) {
+      print('Erro ao obter conversation ID: $e');
+    }
+  }
+
+  void _listenToTypingIndicators(String conversationId) {
+    SupabaseService.getTypingIndicators(conversationId).listen((indicators) {
+      if (mounted) {
+        setState(() {
+          _typingUsers = indicators;
+        });
+      }
+    });
+  }
+
+  Stream<Map<String, String>> _getTypingUsersNames(List<String> userIds) async* {
+    if (userIds.isEmpty) {
+      yield {};
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+      final profiles = await client
+          .from('profiles')
+          .select('id, name')
+          .inFilter('id', userIds);
+
+      final names = <String, String>{};
+      for (final profile in profiles) {
+        names[profile['id']] = profile['name'] ?? 'Usuário';
+      }
+
+      yield names;
+    } catch (e) {
+      print('Erro ao buscar nomes: $e');
+      yield {};
     }
   }
 }

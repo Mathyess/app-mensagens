@@ -18,11 +18,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Configurações'),
-        elevation: 1,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Color(0xFF374151),
+            size: 20,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Configurações',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           _buildSectionHeader('Conta'),
           _buildListTile(
@@ -140,10 +157,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 14,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
-          color: const Color(0xFF075E54),
+          color: const Color(0xFF6366F1),
         ),
       ),
     );
@@ -213,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFF075E54),
+        activeColor: const Color(0xFF6366F1),
       ),
     );
   }
@@ -258,7 +274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   });
                 },
-                activeColor: const Color(0xFF075E54),
+                activeColor: const Color(0xFF6366F1),
               ),
               SwitchListTile(
                 title: Text('Status Online'),
@@ -271,7 +287,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   });
                 },
-                activeColor: const Color(0xFF075E54),
+                activeColor: const Color(0xFF6366F1),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -279,7 +295,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF075E54),
+                    backgroundColor: const Color(0xFF6366F1),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

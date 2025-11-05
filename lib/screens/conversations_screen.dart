@@ -21,6 +21,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _conversations = [];
+  List<Map<String, dynamic>> _filteredConversations = [];
   bool _isLoading = true;
 
   @override
@@ -53,6 +54,37 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
     _fabAnimationController.forward();
     _loadConversations();
+    
+    // Adicionar listener para busca
+    _searchController.addListener(_filterConversations);
+    
+    // Atualizar status online quando entrar
+    _updateOnlineStatus(true);
+  }
+  
+  Future<void> _updateOnlineStatus(bool isOnline) async {
+    try {
+      await SupabaseService.updateOnlineStatus(isOnline);
+    } catch (e) {
+      print('Erro ao atualizar status online: $e');
+    }
+  }
+  
+  void _filterConversations() {
+    final query = _searchController.text.toLowerCase().trim();
+    if (query.isEmpty) {
+      setState(() {
+        _filteredConversations = _conversations;
+      });
+    } else {
+      setState(() {
+        _filteredConversations = _conversations.where((conv) {
+          final name = (conv['name'] as String? ?? '').toLowerCase();
+          final lastMessage = (conv['lastMessage'] as String? ?? '').toLowerCase();
+          return name.contains(query) || lastMessage.contains(query);
+        }).toList();
+      });
+    }
   }
 
   Future<void> _loadConversations() async {
@@ -62,6 +94,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
       if (mounted) {
         setState(() {
           _conversations = conversations;
+          _filteredConversations = conversations;
           _isLoading = false;
         });
         print('✅ ${conversations.length} conversas carregadas');
@@ -91,6 +124,8 @@ class _ConversationsScreenState extends State<ConversationsScreen>
 
   @override
   void dispose() {
+    // Atualizar status offline quando sair
+    _updateOnlineStatus(false);
     _fabAnimationController.dispose();
     _searchAnimationController.dispose();
     _searchController.dispose();
@@ -175,8 +210,10 @@ class _ConversationsScreenState extends State<ConversationsScreen>
           Container(
             padding: const EdgeInsets.all(16),
             child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Search or start new chat',
+                hintText: 'Buscar conversas...',
                 hintStyle: const TextStyle(
                   color: Color(0xFF9CA3AF),
                   fontWeight: FontWeight.w400,
@@ -186,6 +223,16 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                   color: Color(0xFF9CA3AF),
                   size: 20,
                 ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 20),
+                        color: const Color(0xFF9CA3AF),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
                 filled: true,
                 fillColor: const Color(0xFFF9FAFB),
                 border: OutlineInputBorder(
@@ -219,26 +266,32 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                       valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
                     ),
                   )
-                : _conversations.isEmpty
+                : _filteredConversations.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.chat_bubble_outline_rounded,
+                              _searchController.text.isNotEmpty
+                                  ? Icons.search_off_rounded
+                                  : Icons.chat_bubble_outline_rounded,
                               size: 64,
                               color: Colors.grey.shade300,
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Nenhuma conversa ainda',
+                              _searchController.text.isNotEmpty
+                                  ? 'Nenhuma conversa encontrada'
+                                  : 'Nenhuma conversa ainda',
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 color: const Color(0xFF6B7280),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Toque no botão + para iniciar uma conversa',
+                              _searchController.text.isNotEmpty
+                                  ? 'Tente buscar por outro termo'
+                                  : 'Toque no botão + para iniciar uma conversa',
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: const Color(0xFF9CA3AF),
                               ),
@@ -248,9 +301,9 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: _conversations.length,
+                        itemCount: _filteredConversations.length,
                         itemBuilder: (context, index) {
-                          final conversation = _conversations[index];
+                          final conversation = _filteredConversations[index];
                           return _buildSimpleConversationTile(conversation);
                         },
                       ),
@@ -270,6 +323,8 @@ class _ConversationsScreenState extends State<ConversationsScreen>
   }
 
   Widget _buildSimpleConversationTile(Map<String, dynamic> conversation) {
+    final isOnline = conversation['isOnline'] ?? false;
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       decoration: BoxDecoration(
@@ -304,6 +359,23 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               ),
               ),
             ),
+            if (isOnline)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
         title: Row(

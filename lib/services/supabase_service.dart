@@ -9,6 +9,7 @@ import '../models/user.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
+  static final Map<String, StreamController<List<Message>>> _messageStreams = {};
 
   static String _getAuthErrorMessage(dynamic error) {
     if (error is AuthException) {
@@ -267,16 +268,21 @@ class SupabaseService {
         fileUrlToUse = fileUrl;
       }
 
-      // Inserir mensagem no banco
+      // Inserir mensagem no banco com timestamp explícito
+      final now = DateTime.now().toUtc();
       final response = await _client.from('messages').insert({
         'conversation_id': conversationId,
         'sender_id': user.id,
         'content': content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
         'message_type': messageType,
         'file_url': fileUrlToUse,
+        'created_at': now.toIso8601String(),
       }).select().single();
 
-      print('✅ Mensagem enviada: ${response['id']}');
+      print('✅ Mensagem enviada: ${response['id']} em ${now.toIso8601String()}');
+      
+      // Forçar refresh do stream (opcional - o Realtime deve capturar automaticamente)
+      // Mas isso garante que a mensagem apareça imediatamente
     } catch (e) {
       print('❌ Erro ao enviar mensagem: $e');
       if (e.toString().contains('NetworkException') || 
@@ -287,18 +293,40 @@ class SupabaseService {
     }
   }
 
-  static Stream<List<Message>> getMessagesStream(String recipientId) async* {
+  static Stream<List<Message>> getMessagesStream(String recipientId) {
     final user = currentUser;
     if (user == null) {
       print('❌ Usuário não autenticado');
-      yield [];
-      return;
+      return Stream.value([]);
     }
 
     // Validar recipientId
     if (recipientId.isEmpty) {
       print('❌ recipientId está vazio');
-      yield [];
+      return Stream.value([]);
+    }
+
+    // Criar chave única para o stream
+    final streamKey = '${user.id}_$recipientId';
+    
+    // Se já existe um stream para esta conversa, retornar ele
+    if (_messageStreams.containsKey(streamKey)) {
+      return _messageStreams[streamKey]!.stream;
+    }
+
+    // Criar novo StreamController
+    final controller = StreamController<List<Message>>.broadcast();
+    _messageStreams[streamKey] = controller;
+
+    _initializeMessageStream(recipientId, controller);
+    
+    return controller.stream;
+  }
+
+  static Future<void> _initializeMessageStream(String recipientId, StreamController<List<Message>> controller) async {
+    final user = currentUser;
+    if (user == null) {
+      controller.add([]);
       return;
     }
 
@@ -360,6 +388,7 @@ class SupabaseService {
             isFavorite: msg['is_favorite'] ?? false,
             isArchived: msg['is_archived'] ?? false,
             isDeleted: msg['is_deleted'] ?? false,
+            isDeletedForEveryone: msg['is_deleted_for_everyone'] ?? false,
             isEdited: msg['is_edited'] ?? false,
             editedAt: editedAt,
             reactions: reactions,
@@ -393,17 +422,19 @@ class SupabaseService {
         
         final messages = _processMessages(initialMessages);
         print('✅ Enviando ${messages.length} mensagens iniciais para o UI');
-        yield messages;
+        controller.add(messages);
       } catch (e) {
         print('❌ Erro ao carregar mensagens iniciais: $e');
+        controller.add([]);
       }
       
       // Depois, escutar novas mensagens via stream
-      await for (final data in _client
+      _client
           .from('messages')
           .stream(primaryKey: ['id'])
           .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true)) {
+          .order('created_at', ascending: true)
+          .listen((data) async {
         
         print('📨 Recebido ${data.length} mensagens do stream');
         
@@ -432,12 +463,37 @@ class SupabaseService {
         
         final messages = _processMessages(data);
         print('✅ Enviando ${messages.length} mensagens do stream para o UI');
-        yield messages;
-      }
+        
+        // Adicionar ao controller
+        if (!controller.isClosed) {
+          controller.add(messages);
+        }
+      }, onError: (error) {
+        print('❌ Erro no stream de mensagens: $error');
+        if (!controller.isClosed) {
+          controller.addError(error);
+        }
+      });
+      
     } catch (e) {
       print('❌ Erro no stream de mensagens: $e');
       print('❌ Stack trace: ${StackTrace.current}');
-      yield [];
+      if (!controller.isClosed) {
+        controller.add([]);
+      }
+    }
+  }
+
+  // Método para limpar streams quando não precisar mais
+  static void disposeMessageStream(String recipientId) {
+    final user = currentUser;
+    if (user == null) return;
+    
+    final streamKey = '${user.id}_$recipientId';
+    final controller = _messageStreams[streamKey];
+    if (controller != null) {
+      controller.close();
+      _messageStreams.remove(streamKey);
     }
   }
 
@@ -564,6 +620,7 @@ class SupabaseService {
           isFavorite: msg['is_favorite'] ?? false,
           isArchived: msg['is_archived'] ?? false,
           isDeleted: msg['is_deleted'] ?? false,
+          isDeletedForEveryone: msg['is_deleted_for_everyone'] ?? false,
           isEdited: msg['is_edited'] ?? false,
           editedAt: msg['edited_at'] != null 
               ? DateTime.parse(msg['edited_at']) 
@@ -660,6 +717,7 @@ class SupabaseService {
           isFavorite: msg['is_favorite'] ?? false,
           isArchived: msg['is_archived'] ?? false,
           isDeleted: msg['is_deleted'] ?? false,
+          isDeletedForEveryone: msg['is_deleted_for_everyone'] ?? false,
           isEdited: msg['is_edited'] ?? false,
           editedAt: msg['edited_at'] != null 
               ? DateTime.parse(msg['edited_at']) 
@@ -919,8 +977,31 @@ class SupabaseService {
     }
   }
 
-  // Deletar mensagem
-  static Future<void> deleteMessage(String messageId) async {
+  // Deletar mensagem apenas para mim
+  static Future<void> deleteMessageForMe(String messageId) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        throw Exception('Usuário não autenticado');
+      }
+
+      // Marcar como deletada apenas para o usuário atual (soft delete)
+      await _client
+          .from('messages')
+          .update({
+            'is_deleted': true,
+          })
+          .eq('id', messageId);
+
+      print('✅ Mensagem deletada para mim: $messageId');
+    } catch (e) {
+      print('❌ Erro ao deletar mensagem: $e');
+      throw Exception('Erro ao deletar mensagem: ${e.toString()}');
+    }
+  }
+
+  // Deletar mensagem para todos
+  static Future<void> deleteMessageForEveryone(String messageId) async {
     try {
       final user = currentUser;
       if (user == null) {
@@ -935,19 +1016,19 @@ class SupabaseService {
           .single();
 
       if (message['sender_id'] != user.id) {
-        throw Exception('Você só pode deletar suas próprias mensagens.');
+        throw Exception('Você só pode deletar suas próprias mensagens para todos.');
       }
 
-      // Marcar como deletada (soft delete)
+      // Marcar como deletada para todos (soft delete)
       await _client
           .from('messages')
           .update({
-            'is_deleted': true,
+            'is_deleted_for_everyone': true,
             'content': 'Esta mensagem foi deletada',
           })
           .eq('id', messageId);
 
-      print('✅ Mensagem deletada: $messageId');
+      print('✅ Mensagem deletada para todos: $messageId');
     } catch (e) {
       print('❌ Erro ao deletar mensagem: $e');
       throw Exception('Erro ao deletar mensagem: ${e.toString()}');

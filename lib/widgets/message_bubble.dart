@@ -141,7 +141,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _toggleArchived();
               },
             ),
-            if (widget.isMe && !widget.message.isDeleted) ...[
+            if (widget.isMe && !widget.message.isDeleted && !widget.message.isDeletedForEveryone) ...[
               if (widget.message.canBeEdited())
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
@@ -153,14 +153,22 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Deletar', style: TextStyle(color: Colors.red)),
+                title: const Text('Deletar para mim', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
-                  _deleteMessage();
+                  _deleteMessageForMe();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+                title: const Text('Deletar para todos', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteMessageForEveryone();
                 },
               ),
             ],
-            if (!widget.message.isDeleted)
+            if (!widget.message.isDeleted && !widget.message.isDeletedForEveryone)
               ListTile(
                 leading: const Icon(Icons.add_reaction_outlined),
                 title: const Text('Adicionar reação'),
@@ -286,20 +294,22 @@ class _MessageBubbleState extends State<MessageBubble> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.message.isDeleted 
+                              widget.message.isDeletedForEveryone 
                                   ? 'Esta mensagem foi deletada'
-                                  : widget.message.content,
+                                  : widget.message.isDeleted 
+                                      ? 'Você deletou esta mensagem'
+                                      : widget.message.content,
                               style: TextStyle(
                                 fontSize: 15,
                                 color: widget.isMe 
-                                    ? (widget.message.isDeleted 
+                                    ? (widget.message.isDeleted || widget.message.isDeletedForEveryone
                                         ? Colors.white.withOpacity(0.6)
                                         : Colors.white)
-                                    : (widget.message.isDeleted
+                                    : (widget.message.isDeleted || widget.message.isDeletedForEveryone
                                         ? const Color(0xFF9CA3AF)
                                         : const Color(0xFF374151)),
                                 height: 1.4,
-                                fontStyle: widget.message.isDeleted 
+                                fontStyle: widget.message.isDeleted || widget.message.isDeletedForEveryone
                                     ? FontStyle.italic 
                                     : FontStyle.normal,
                               ),
@@ -377,7 +387,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          if (widget.message.isEdited && !widget.message.isDeleted) ...[
+                          if (widget.message.isEdited && !widget.message.isDeleted && !widget.message.isDeletedForEveryone) ...[
                             const SizedBox(width: 4),
                             Text(
                               'editado',
@@ -536,12 +546,12 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  void _deleteMessage() {
+  void _deleteMessageForMe() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Deletar mensagem'),
-        content: const Text('Tem certeza que deseja deletar esta mensagem?'),
+        content: const Text('Esta mensagem será deletada apenas para você. Tem certeza?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -550,12 +560,12 @@ class _MessageBubbleState extends State<MessageBubble> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await SupabaseService.deleteMessage(widget.message.id);
+                await SupabaseService.deleteMessageForMe(widget.message.id);
                 if (mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Mensagem deletada'),
+                      content: Text('Mensagem deletada para você'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -577,6 +587,53 @@ class _MessageBubbleState extends State<MessageBubble> {
               foregroundColor: Colors.white,
             ),
             child: const Text('Deletar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteMessageForEveryone() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Deletar para todos'),
+        content: const Text('Esta mensagem será deletada para todos os participantes da conversa. Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await SupabaseService.deleteMessageForEveryone(widget.message.id);
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mensagem deletada para todos'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erro ao deletar: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Deletar para todos'),
           ),
         ],
       ),

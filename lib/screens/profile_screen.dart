@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import '../services/supabase_service.dart';
 import '../models/user.dart';
 import '../routes.dart';
-import '../theme/matrix_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,6 +18,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   AppUser? _userProfile;
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -52,8 +53,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-<<<<<<< HEAD
-=======
   Future<void> _pickImage() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -137,7 +136,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -146,23 +144,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      // TODO: Implementar atualização de nome no SupabaseService
-      await Future.delayed(const Duration(seconds: 1));
+      String? avatarUrl = _userProfile?.avatarUrl;
+
+
+      await SupabaseService.updateProfile(
+        name: _nameController.text.trim(),
+        avatarUrl: avatarUrl,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Nome atualizado com sucesso!'),
-            backgroundColor: MatrixTheme.primaryPurple,
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Perfil atualizado com sucesso!'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade700,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
         );
+        Navigator.of(context).pop();
       }
     } catch (e) {
-      _showError('Erro ao salvar: ${e.toString()}');
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() {
@@ -172,65 +182,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _handleLogout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: MatrixTheme.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text(
-          'Sair da conta',
-          style: TextStyle(color: MatrixTheme.textPrimary),
-        ),
-        content: const Text(
-          'Tem certeza que deseja sair?',
-          style: TextStyle(color: MatrixTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: MatrixTheme.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Sair'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await SupabaseService.signOut();
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-        }
-      } catch (e) {
-        _showError('Erro ao sair: ${e.toString()}');
-      }
-    }
-  }
-
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message.replaceFirst('Exception: ', '')),
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: Colors.red.shade700,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );
@@ -316,47 +282,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MatrixTheme.darkBackground,
       appBar: AppBar(
-        backgroundColor: MatrixTheme.darkBackground,
+        backgroundColor: const Color(0xFF075E54),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: MatrixTheme.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
+        title: Text(
           'Perfil',
           style: TextStyle(
-            color: MatrixTheme.textPrimary,
-            fontWeight: FontWeight.w600,
             fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.primaryPurple),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF075E54)),
               ),
             )
           : SingleChildScrollView(
-<<<<<<< HEAD
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    // Avatar grande
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            MatrixTheme.primaryPurple,
-                            MatrixTheme.lightPurple,
-=======
               child: Column(
                 children: [
                   Container(
@@ -405,148 +353,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                             ),
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: MatrixTheme.primaryPurple.withOpacity(0.4),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informações do Perfil',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: InputDecoration(
+                              labelText: 'Nome',
+                              hintText: 'Digite seu nome',
+                              prefixIcon: Icon(Icons.person_outline),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: const Color(0xFF075E54),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Por favor, digite seu nome';
+                              }
+                              if (value.trim().length < 2) {
+                                return 'Nome deve ter pelo menos 2 caracteres';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            initialValue: _userProfile?.email ?? '',
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                            ),
+                            enabled: false,
+                          ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isSaving ? null : _saveProfile,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF25D366),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _isSaving
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      'Salvar Alterações',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ),
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          _userProfile?.name.isNotEmpty == true
-                              ? _userProfile!.name[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
                     ),
-                    const SizedBox(height: 24),
-                    
-                    // Email
-                    Text(
-                      _userProfile?.email ?? '',
-                      style: const TextStyle(
-                        color: MatrixTheme.textSecondary,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 60),
-                    
-                    // Campo de nome
-                    TextFormField(
-                      controller: _nameController,
-                      style: const TextStyle(
-                        color: MatrixTheme.textPrimary,
-                        fontSize: 16,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Nome',
-                        labelStyle: const TextStyle(
-                          color: MatrixTheme.textSecondary,
-                          fontSize: 14,
-                        ),
-                        hintText: 'Digite seu nome',
-                        hintStyle: const TextStyle(color: MatrixTheme.textTertiary),
-                        prefixIcon: const Icon(
-                          Icons.person_outline_rounded,
-                          color: MatrixTheme.primaryPurple,
-                        ),
-                        filled: true,
-                        fillColor: MatrixTheme.cardBackground,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: MatrixTheme.primaryPurple,
-                            width: 2,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor, insira seu nome';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Botão salvar nome
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _saveProfile,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: MatrixTheme.primaryPurple,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Salvar Alterações',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    
-                    // Botão sair
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: OutlinedButton.icon(
-                        onPressed: _handleLogout,
-                        icon: const Icon(Icons.logout_rounded),
-                        label: const Text(
-                          'Sair da Conta',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red, width: 2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
     );

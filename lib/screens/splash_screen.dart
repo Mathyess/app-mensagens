@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/supabase_service.dart';
 import '../routes.dart';
-import '../theme/matrix_theme.dart';
+import '../services/supabase_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,7 +9,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -20,26 +20,38 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.initState();
     
     _animationController = AnimationController(
-      vsync: this,
       duration: const Duration(milliseconds: 1500),
+      vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-      ),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    ));
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
-      ),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
+    ));
 
     _animationController.forward();
-    _checkAuth();
+    
+    // Aguarda 2 segundos e navega para a próxima tela
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed(
+          SupabaseService.currentUser != null 
+              ? AppRoutes.conversations 
+              : AppRoutes.login,
+        );
+      }
+    });
   }
 
   @override
@@ -48,76 +60,65 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-
-    final isAuthenticated = SupabaseService.currentUser != null;
-
-    Navigator.of(context).pushReplacementNamed(
-      isAuthenticated ? AppRoutes.conversations : AppRoutes.login,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MatrixTheme.darkBackground,
+      backgroundColor: Colors.white,
       body: Center(
         child: AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
-            return Opacity(
-              opacity: _fadeAnimation.value,
-              child: Transform.scale(
-                scale: _scaleAnimation.value,
+            return FadeTransition(
+              opacity: _fadeAnimation,
+              child: ScaleTransition(
+                scale: _scaleAnimation,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Logo minimalista
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [
-                            MatrixTheme.primaryPurple,
-                            MatrixTheme.lightPurple,
+                            Color(0xFF6366F1),
+                            Color(0xFF8B5CF6),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: MatrixTheme.primaryPurple.withOpacity(0.5),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                            offset: const Offset(0, 10),
+                            color: const Color(0xFF6366F1).withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
                       child: const Icon(
-                        Icons.forum_rounded,
+                        Icons.chat_bubble_outline_rounded,
                         color: Colors.white,
-                        size: 60,
+                        size: 40,
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    const Text(
-                      'WeTalk',
-                      style: TextStyle(
-                        color: MatrixTheme.textPrimary,
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(height: 24),
+                    // Nome do app
+                    Text(
+                      'Connect',
+                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1F2937),
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Conecte-se com seus amigos',
-                      style: TextStyle(
-                        color: MatrixTheme.textSecondary,
-                        fontSize: 16,
+                    Text(
+                      'Mensagens simples e diretas',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF6B7280),
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],

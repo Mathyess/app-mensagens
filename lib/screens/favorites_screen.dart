@@ -138,6 +138,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       return MessageBubble(
                         message: message,
                         isMe: isMe,
+                        onFavoriteToggled: _loadFavorites,
                       );
                     },
                   ),

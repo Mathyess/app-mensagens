@@ -8,7 +8,6 @@ class Message {
   final bool isFavorite;
   final bool isArchived;
   final bool isDeleted;
-  final bool isDeletedForEveryone; // Nova propriedade para deletar para todos
   final bool isEdited;
   final DateTime? editedAt;
   final Map<String, List<String>>? reactions; // emoji -> lista de user_ids
@@ -23,7 +22,6 @@ class Message {
     this.isFavorite = false,
     this.isArchived = false,
     this.isDeleted = false,
-    this.isDeletedForEveryone = false,
     this.isEdited = false,
     this.editedAt,
     this.reactions,
@@ -69,7 +67,6 @@ class Message {
       isFavorite: json['is_favorite'] ?? false,
       isArchived: json['is_archived'] ?? false,
       isDeleted: json['is_deleted'] ?? false,
-      isDeletedForEveryone: json['is_deleted_for_everyone'] ?? false,
       isEdited: json['is_edited'] ?? false,
       editedAt: editedAt,
       reactions: reactions,
@@ -87,7 +84,6 @@ class Message {
       'is_favorite': isFavorite,
       'is_archived': isArchived,
       'is_deleted': isDeleted,
-      'is_deleted_for_everyone': isDeletedForEveryone,
       'is_edited': isEdited,
       'edited_at': editedAt?.toIso8601String(),
       'reactions': reactions,
@@ -104,7 +100,6 @@ class Message {
     bool? isFavorite,
     bool? isArchived,
     bool? isDeleted,
-    bool? isDeletedForEveryone,
     bool? isEdited,
     DateTime? editedAt,
     Map<String, List<String>>? reactions,
@@ -119,7 +114,6 @@ class Message {
       isFavorite: isFavorite ?? this.isFavorite,
       isArchived: isArchived ?? this.isArchived,
       isDeleted: isDeleted ?? this.isDeleted,
-      isDeletedForEveryone: isDeletedForEveryone ?? this.isDeletedForEveryone,
       isEdited: isEdited ?? this.isEdited,
       editedAt: editedAt ?? this.editedAt,
       reactions: reactions ?? this.reactions,
@@ -128,7 +122,7 @@ class Message {
 
   // Verifica se a mensagem pode ser editada (até 15 minutos)
   bool canBeEdited() {
-    if (isDeleted || isDeletedForEveryone) return false;
+    if (isDeleted) return false;
     final now = DateTime.now();
     final difference = now.difference(createdAt);
     return difference.inMinutes <= 15;

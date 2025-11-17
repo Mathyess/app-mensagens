@@ -1,25 +1,13 @@
 import 'dart:async';
-<<<<<<< HEAD
-import 'package:async/async.dart';
-=======
-import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message.dart';
 import '../models/user.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
-<<<<<<< HEAD
-  
-  // StreamControllers para forçar atualização de mensagens
-  static final Map<String, StreamController<void>> _refreshControllers = {};
-=======
-  static final Map<String, StreamController<List<Message>>> _messageStreams = {};
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
 
   static String _getAuthErrorMessage(dynamic error) {
     if (error is AuthException) {
@@ -134,7 +122,7 @@ class SupabaseService {
         return AppUser.fromJson({
           'id': profile['id'],
           'email': profile['email'] ?? user.email ?? '',
-          'name': profile['name'] ?? user.userMetadata?['name'] ?? 'Usuário',
+          'name': profile['name'] ?? (user.userMetadata?['name'] ?? 'Usuário'),
           'avatar_url': profile['avatar_url'],
           'created_at': profile['created_at'] ?? user.createdAt ?? DateTime.now().toIso8601String(),
         });
@@ -278,32 +266,16 @@ class SupabaseService {
         fileUrlToUse = fileUrl;
       }
 
-      // Inserir mensagem no banco com timestamp explícito
-      final now = DateTime.now().toUtc();
+      // Inserir mensagem no banco
       final response = await _client.from('messages').insert({
         'conversation_id': conversationId,
         'sender_id': user.id,
         'content': content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
         'message_type': messageType,
         'file_url': fileUrlToUse,
-        'created_at': now.toIso8601String(),
       }).select().single();
 
-<<<<<<< HEAD
       print('✅ Mensagem enviada: ${response['id']}');
-      
-      // Forçar atualização do stream
-      final controller = _refreshControllers[recipientId];
-      if (controller != null && !controller.isClosed) {
-        controller.add(null);
-        print('🔄 Sinal de atualização enviado');
-      }
-=======
-      print('✅ Mensagem enviada: ${response['id']} em ${now.toIso8601String()}');
-      
-      // Forçar refresh do stream (opcional - o Realtime deve capturar automaticamente)
-      // Mas isso garante que a mensagem apareça imediatamente
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
     } catch (e) {
       print('❌ Erro ao enviar mensagem: $e');
       if (e.toString().contains('NetworkException') || 
@@ -314,48 +286,20 @@ class SupabaseService {
     }
   }
 
-  static Stream<List<Message>> getMessagesStream(String recipientId) {
+  static Stream<List<Message>> getMessagesStream(String recipientId) async* {
     final user = currentUser;
     if (user == null) {
       print('❌ Usuário não autenticado');
-      return Stream.value([]);
+      yield [];
+      return;
     }
 
     // Validar recipientId
     if (recipientId.isEmpty) {
       print('❌ recipientId está vazio');
-      return Stream.value([]);
-    }
-
-    // Criar chave única para o stream
-    final streamKey = '${user.id}_$recipientId';
-    
-    // Se já existe um stream para esta conversa, retornar ele
-    if (_messageStreams.containsKey(streamKey)) {
-      return _messageStreams[streamKey]!.stream;
-    }
-
-    // Criar novo StreamController
-    final controller = StreamController<List<Message>>.broadcast();
-    _messageStreams[streamKey] = controller;
-
-    _initializeMessageStream(recipientId, controller);
-    
-    return controller.stream;
-  }
-
-  static Future<void> _initializeMessageStream(String recipientId, StreamController<List<Message>> controller) async {
-    final user = currentUser;
-    if (user == null) {
-      controller.add([]);
+      yield [];
       return;
     }
-
-    // Criar controller de refresh para esta conversa
-    if (!_refreshControllers.containsKey(recipientId)) {
-      _refreshControllers[recipientId] = StreamController<void>.broadcast();
-    }
-    final refreshController = _refreshControllers[recipientId]!;
 
     try {
       print('📤 Buscando conversa com: $recipientId');
@@ -368,81 +312,11 @@ class SupabaseService {
 
       print('📱 Conversation ID: $conversationId');
 
-      // Cache de nomes de perfis
+      // Buscar nome do remetente para cada mensagem
       final profiles = <String, String>{};
       
-<<<<<<< HEAD
-      // Função helper para buscar mensagens do banco
-      Future<List<Message>> fetchMessages() async {
-        try {
-          final data = await _client
-              .from('messages')
-              .select()
-              .eq('conversation_id', conversationId)
-              .order('created_at', ascending: true);
-          
-          final messages = <Message>[];
-          
-          for (final msg in data) {
-            final senderId = msg['sender_id'];
-            
-            // Cache de perfis para evitar múltiplas consultas
-            if (!profiles.containsKey(senderId)) {
-              try {
-                final profile = await _client
-                    .from('profiles')
-                    .select('name')
-                    .eq('id', senderId)
-                    .single();
-                profiles[senderId] = profile['name'] ?? 'Usuário';
-              } catch (e) {
-                profiles[senderId] = 'Usuário';
-              }
-            }
-            
-            messages.add(Message(
-              id: msg['id'],
-              content: msg['content'] ?? '',
-              senderId: senderId,
-              senderName: profiles[senderId] ?? 'Usuário',
-              createdAt: DateTime.parse(msg['created_at']),
-              imageUrl: msg['file_url'],
-              isFavorite: false,
-              isArchived: false,
-            ));
-          }
-          
-          return messages;
-        } catch (e) {
-          print('⚠️ Erro ao buscar mensagens: $e');
-          return [];
-        }
-      }
-      
-      // Carregar mensagens iniciais
-      print('🔍 Carregando mensagens existentes...');
-      final initialMessages = await fetchMessages();
-      print('✅ Carregadas ${initialMessages.length} mensagens existentes');
-      yield initialMessages;
-      
-      // Stream do Supabase para atualizações em tempo real
-      final supabaseStream = _client
-          .from('messages')
-          .stream(primaryKey: ['id'])
-          .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true);
-      
-      // Combinar stream do Supabase com sinais de refresh manual
-      await for (final _ in StreamGroup.merge([
-        supabaseStream,
-        refreshController.stream.map((_) => []), // Mapear para lista vazia apenas como trigger
-      ])) {
-        final messages = await fetchMessages();
-        print('🔄 Stream atualizou: ${messages.length} mensagens');
-        yield messages;
-=======
       // Função auxiliar para processar mensagens
-      List<Message> _processMessages(List<dynamic> data) {
+      List<Message> processMessages(List<dynamic> data) {
         final messages = <Message>[];
         
         for (final msg in data) {
@@ -485,14 +359,12 @@ class SupabaseService {
             isFavorite: msg['is_favorite'] ?? false,
             isArchived: msg['is_archived'] ?? false,
             isDeleted: msg['is_deleted'] ?? false,
-            isDeletedForEveryone: msg['is_deleted_for_everyone'] ?? false,
             isEdited: msg['is_edited'] ?? false,
             editedAt: editedAt,
             reactions: reactions,
           ));
         }
         return messages;
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
       }
       
       // Primeiro, carregar mensagens existentes
@@ -518,21 +390,19 @@ class SupabaseService {
           }
         }
         
-        final messages = _processMessages(initialMessages);
+        final messages = processMessages(initialMessages);
         print('✅ Enviando ${messages.length} mensagens iniciais para o UI');
-        controller.add(messages);
+        yield messages;
       } catch (e) {
         print('❌ Erro ao carregar mensagens iniciais: $e');
-        controller.add([]);
       }
       
       // Depois, escutar novas mensagens via stream
-      _client
+      await for (final data in _client
           .from('messages')
           .stream(primaryKey: ['id'])
           .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true)
-          .listen((data) async {
+          .order('created_at', ascending: true)) {
         
         print('📨 Recebido ${data.length} mensagens do stream');
         
@@ -559,39 +429,14 @@ class SupabaseService {
           }
         }
         
-        final messages = _processMessages(data);
+        final messages = processMessages(data);
         print('✅ Enviando ${messages.length} mensagens do stream para o UI');
-        
-        // Adicionar ao controller
-        if (!controller.isClosed) {
-          controller.add(messages);
-        }
-      }, onError: (error) {
-        print('❌ Erro no stream de mensagens: $error');
-        if (!controller.isClosed) {
-          controller.addError(error);
-        }
-      });
-      
+        yield messages;
+      }
     } catch (e) {
       print('❌ Erro no stream de mensagens: $e');
       print('❌ Stack trace: ${StackTrace.current}');
-      if (!controller.isClosed) {
-        controller.add([]);
-      }
-    }
-  }
-
-  // Método para limpar streams quando não precisar mais
-  static void disposeMessageStream(String recipientId) {
-    final user = currentUser;
-    if (user == null) return;
-    
-    final streamKey = '${user.id}_$recipientId';
-    final controller = _messageStreams[streamKey];
-    if (controller != null) {
-      controller.close();
-      _messageStreams.remove(streamKey);
+      yield [];
     }
   }
 
@@ -718,7 +563,6 @@ class SupabaseService {
           isFavorite: msg['is_favorite'] ?? false,
           isArchived: msg['is_archived'] ?? false,
           isDeleted: msg['is_deleted'] ?? false,
-          isDeletedForEveryone: msg['is_deleted_for_everyone'] ?? false,
           isEdited: msg['is_edited'] ?? false,
           editedAt: msg['edited_at'] != null 
               ? DateTime.parse(msg['edited_at']) 
@@ -815,7 +659,6 @@ class SupabaseService {
           isFavorite: msg['is_favorite'] ?? false,
           isArchived: msg['is_archived'] ?? false,
           isDeleted: msg['is_deleted'] ?? false,
-          isDeletedForEveryone: msg['is_deleted_for_everyone'] ?? false,
           isEdited: msg['is_edited'] ?? false,
           editedAt: msg['edited_at'] != null 
               ? DateTime.parse(msg['edited_at']) 
@@ -1075,31 +918,8 @@ class SupabaseService {
     }
   }
 
-  // Deletar mensagem apenas para mim
-  static Future<void> deleteMessageForMe(String messageId) async {
-    try {
-      final user = currentUser;
-      if (user == null) {
-        throw Exception('Usuário não autenticado');
-      }
-
-      // Marcar como deletada apenas para o usuário atual (soft delete)
-      await _client
-          .from('messages')
-          .update({
-            'is_deleted': true,
-          })
-          .eq('id', messageId);
-
-      print('✅ Mensagem deletada para mim: $messageId');
-    } catch (e) {
-      print('❌ Erro ao deletar mensagem: $e');
-      throw Exception('Erro ao deletar mensagem: ${e.toString()}');
-    }
-  }
-
-  // Deletar mensagem para todos
-  static Future<void> deleteMessageForEveryone(String messageId) async {
+  // Deletar mensagem
+  static Future<void> deleteMessage(String messageId) async {
     try {
       final user = currentUser;
       if (user == null) {
@@ -1114,19 +934,19 @@ class SupabaseService {
           .single();
 
       if (message['sender_id'] != user.id) {
-        throw Exception('Você só pode deletar suas próprias mensagens para todos.');
+        throw Exception('Você só pode deletar suas próprias mensagens.');
       }
 
-      // Marcar como deletada para todos (soft delete)
+      // Marcar como deletada (soft delete)
       await _client
           .from('messages')
           .update({
-            'is_deleted_for_everyone': true,
+            'is_deleted': true,
             'content': 'Esta mensagem foi deletada',
           })
           .eq('id', messageId);
 
-      print('✅ Mensagem deletada para todos: $messageId');
+      print('✅ Mensagem deletada: $messageId');
     } catch (e) {
       print('❌ Erro ao deletar mensagem: $e');
       throw Exception('Erro ao deletar mensagem: ${e.toString()}');

@@ -3,7 +3,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/supabase_service.dart';
 import '../routes.dart';
-import '../theme/matrix_theme.dart';
 
 class SimpleProfileScreen extends StatefulWidget {
   const SimpleProfileScreen({super.key});
@@ -279,22 +278,53 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
     final userEmail = currentUser?.email ?? '';
 
     return Scaffold(
-      backgroundColor: MatrixTheme.darkBackground,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: MatrixTheme.darkBackground,
+        backgroundColor: Colors.white,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: MatrixTheme.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Color(0xFF374151),
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Perfil',
-          style: TextStyle(
-            color: MatrixTheme.textPrimary,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
-            fontSize: 20,
           ),
         ),
+        actions: [
+          if (_isEditing)
+            TextButton(
+              onPressed: _updateProfile,
+              child: const Text(
+                'Salvar',
+                style: TextStyle(
+                  color: Color(0xFF6366F1),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isEditing = true;
+                });
+              },
+              child: const Text(
+                'Editar',
+                style: TextStyle(
+                  color: Color(0xFF6366F1),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -441,90 +471,75 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
               ],
             ),
             const SizedBox(height: 48),
-            // Campo de nome
-            TextField(
-              controller: _nameController,
-              style: const TextStyle(
-                color: MatrixTheme.textPrimary,
-                fontSize: 16,
+            // Opções do perfil
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF3F4F6)),
               ),
-              decoration: InputDecoration(
-                labelText: 'Nome',
-                labelStyle: const TextStyle(
-                  color: MatrixTheme.textSecondary,
-                  fontSize: 14,
-                ),
-                hintText: 'Digite seu nome',
-                hintStyle: const TextStyle(color: MatrixTheme.textTertiary),
-                prefixIcon: const Icon(
-                  Icons.person_outline_rounded,
-                  color: MatrixTheme.primaryPurple,
-                ),
-                filled: true,
-                fillColor: MatrixTheme.cardBackground,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: MatrixTheme.primaryPurple,
-                    width: 2,
+              child: Column(
+                children: [
+                  _buildProfileOption(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Editar perfil',
+                    subtitle: 'Alterar nome e informações',
+                    onTap: () {
+                      setState(() {
+                        _isEditing = true;
+                      });
+                    },
                   ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            // Botão salvar nome
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _updateProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: MatrixTheme.primaryPurple,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  const Divider(height: 1, indent: 56),
+                  _buildProfileOption(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notificações',
+                    subtitle: 'Gerenciar notificações',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Configurações de notificação em desenvolvimento'),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Salvar Alterações',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                  const Divider(height: 1, indent: 56),
+                  _buildProfileOption(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Ajuda',
+                    subtitle: 'Central de ajuda e suporte',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.help),
                   ),
-                ),
+                  const Divider(height: 1, indent: 56),
+                  _buildProfileOption(
+                    icon: Icons.info_outline_rounded,
+                    title: 'Sobre',
+                    subtitle: 'Informações do aplicativo',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 40),
-            
-            // Botão sair
+            const SizedBox(height: 24),
+            // Botão de sair
             SizedBox(
               width: double.infinity,
-              height: 56,
-              child: OutlinedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: _logout,
                 icon: const Icon(Icons.logout_rounded),
-                label: const Text(
-                  'Sair da Conta',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
+                label: const Text('Sair da conta'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade50,
                   foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red, width: 2),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.red.shade200),
                   ),
                 ),
               ),
@@ -532,6 +547,48 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProfileOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          color: const Color(0xFF6B7280),
+          size: 20,
+        ),
+      ),
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: const Color(0xFF6B7280),
+        ),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios_rounded,
+        color: Color(0xFF9CA3AF),
+        size: 16,
+      ),
+      onTap: onTap,
     );
   }
 }

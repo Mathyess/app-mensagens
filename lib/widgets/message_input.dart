@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-import '../theme/matrix_theme.dart';
-=======
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/supabase_service.dart';
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSendMessage;
@@ -21,13 +17,6 @@ class MessageInput extends StatefulWidget {
   State<MessageInput> createState() => _MessageInputState();
 }
 
-<<<<<<< HEAD
-class _MessageInputState extends State<MessageInput> with SingleTickerProviderStateMixin {
-  final TextEditingController _textController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  bool _hasText = false;
-  late AnimationController _sendAnimation;
-=======
 class _MessageInputState extends State<MessageInput>
     with TickerProviderStateMixin {
   final _textController = TextEditingController();
@@ -40,14 +29,10 @@ class _MessageInputState extends State<MessageInput>
   late AnimationController _expandAnimationController;
   late Animation<double> _sendAnimation;
   late Animation<double> _expandAnimation;
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
 
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
-    _sendAnimation = AnimationController(
-=======
     _textController.addListener(() {
       final hasTextNow = _textController.text.trim().isNotEmpty;
       if (_hasText != hasTextNow) {
@@ -61,11 +46,29 @@ class _MessageInputState extends State<MessageInput>
 
     _sendAnimationController = AnimationController(
       duration: const Duration(milliseconds: 200),
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
       vsync: this,
-      duration: const Duration(milliseconds: 200),
     );
-    _textController.addListener(_handleTextChanged);
+
+    _expandAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+
+    _sendAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.8,
+    ).animate(CurvedAnimation(
+      parent: _sendAnimationController,
+      curve: Curves.easeInOut,
+    ));
+
+    _expandAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(
+      parent: _expandAnimationController,
+      curve: Curves.easeInOut,
+    ));
   }
 
   void _handleTyping(bool isTyping) async {
@@ -91,29 +94,11 @@ class _MessageInputState extends State<MessageInput>
     }
     _textController.dispose();
     _focusNode.dispose();
-    _sendAnimation.dispose();
+    _sendAnimationController.dispose();
+    _expandAnimationController.dispose();
     super.dispose();
   }
 
-<<<<<<< HEAD
-  void _handleTextChanged() {
-    final hasText = _textController.text.trim().isNotEmpty;
-    if (_hasText != hasText) {
-      setState(() {
-        _hasText = hasText;
-      });
-      if (hasText) {
-        _sendAnimation.forward();
-      } else {
-        _sendAnimation.reverse();
-      }
-    }
-  }
-
-  void _sendMessage() {
-    final text = _textController.text.trim();
-    if (text.isNotEmpty) {
-=======
   void _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isNotEmpty && !_isUploading) {
@@ -126,13 +111,11 @@ class _MessageInputState extends State<MessageInput>
         _sendAnimationController.reverse();
       });
       
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
       widget.onSendMessage(text);
       _textController.clear();
       setState(() {
         _hasText = false;
       });
-      _sendAnimation.reverse();
     }
   }
 
@@ -246,20 +229,14 @@ class _MessageInputState extends State<MessageInput>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: MatrixTheme.darkBackground,
+        color: Colors.white,
         border: Border(
-          top: BorderSide(
-            color: MatrixTheme.cardBackground,
-            width: 1,
-          ),
+          top: BorderSide(color: Colors.grey.shade200),
         ),
       ),
       child: SafeArea(
         child: Row(
           children: [
-<<<<<<< HEAD
-            // Campo de texto
-=======
             // Botão de anexo (imagem)
             if (!_isUploading)
               IconButton(
@@ -284,89 +261,63 @@ class _MessageInputState extends State<MessageInput>
                 ),
               ),
             // Campo de texto simples
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: MatrixTheme.cardBackground,
+                  color: const Color(0xFFF9FAFB),
                   borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: _focusNode.hasFocus 
+                        ? const Color(0xFF6366F1) 
+                        : const Color(0xFFE5E7EB),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextField(
-                        controller: _textController,
-                        focusNode: _focusNode,
-                        style: const TextStyle(
-                          color: MatrixTheme.textPrimary,
-                          fontSize: 15,
-                        ),
-                        decoration: const InputDecoration(
-                          hintText: 'Digite uma mensagem...',
-                          hintStyle: TextStyle(
-                            color: MatrixTheme.textTertiary,
-                            fontSize: 15,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 12,
-                          ),
-                        ),
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
-                        onSubmitted: (_) => _sendMessage(),
-                      ),
+                child: TextField(
+                  controller: _textController,
+                  focusNode: _focusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Mensagem',
+                    hintStyle: const TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontWeight: FontWeight.w400,
                     ),
-                    const SizedBox(width: 16),
-                  ],
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _sendMessage(),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            // Botão de enviar
-            AnimatedScale(
-              scale: _hasText ? 1.0 : 0.8,
-              duration: const Duration(milliseconds: 200),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: _hasText
-                        ? [
-                            MatrixTheme.primaryPurple,
-                            MatrixTheme.darkPurple,
-                          ]
-                        : [
-                            MatrixTheme.cardBackground,
-                            MatrixTheme.cardBackground,
-                          ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            const SizedBox(width: 12),
+            // Botão de enviar simples
+            AnimatedBuilder(
+              animation: _sendAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _sendAnimation.value,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _hasText ? const Color(0xFF6366F1) : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.send_rounded,
+                        color: _hasText ? Colors.white : Colors.grey.shade500,
+                        size: 18,
+                      ),
+                      onPressed: _hasText ? _sendMessage : null,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: _hasText
-                      ? [
-                          BoxShadow(
-                            color: MatrixTheme.primaryPurple.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    _hasText ? Icons.send_rounded : Icons.mic_rounded,
-                    color: _hasText ? Colors.white : MatrixTheme.textTertiary,
-                    size: 22,
-                  ),
-                  onPressed: _hasText ? _sendMessage : () {
-                    // Implementar gravação de áudio
-                  },
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),

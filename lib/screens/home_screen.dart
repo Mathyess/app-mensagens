@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
-import '../theme/matrix_theme.dart';
+import '../widgets/app_drawer.dart';
+import '../routes.dart';
 
 class HomeScreen extends StatefulWidget {
   final String? userId;
@@ -25,9 +27,15 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _cachedUserId;
   String? _cachedConversationId;
   Map<String, bool> _typingUsers = {};
+  final StreamController<List<Message>> _messagesController = StreamController<List<Message>>.broadcast();
+  StreamSubscription<List<Message>>? _messagesSubscription;
+  List<Message> _pendingMessages = [];
+  List<Message> _serverMessages = [];
 
   @override
   void dispose() {
+    _messagesSubscription?.cancel();
+    _messagesController.close();
     _scrollController.dispose();
     super.dispose();
   }
@@ -51,63 +59,134 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-<<<<<<< HEAD
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
-      });
-=======
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
     }
   }
 
-  String _getChatName() {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    return widget.chatName ?? args?['chatName'] ?? 'Chat';
+  void _emitCombinedMessages() {
+    if (_messagesController.isClosed) return;
+    
+    final allMessages = <Message>[];
+    allMessages.addAll(_serverMessages);
+    
+    for (final pending in _pendingMessages) {
+      final existsInServer = _serverMessages.any((server) {
+        return server.content == pending.content &&
+            server.senderId == pending.senderId &&
+            (server.createdAt.difference(pending.createdAt).inSeconds.abs() < 5);
+      });
+      
+      if (!existsInServer) {
+        allMessages.add(pending);
+      }
+    }
+    
+    allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    _messagesController.add(allMessages);
   }
 
-  Future<void> _handleSendMessage(String content) async {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    print('📨 Enviando mensagem...');
-    print('📦 Args: $args');
-
-    final recipientId = _cachedUserId ?? widget.userId ?? args?['userId'];
-    print('🔑 UserId extraído: "$recipientId"');
-
-    if (recipientId == null || recipientId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro: Destinatário não encontrado'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
+  Future<void> _handleLogout() async {
     try {
-      await SupabaseService.sendMessage(content, recipientId);
-      _scrollToBottom();
+      await SupabaseService.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao enviar mensagem: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Erro ao sair: ${e.toString().replaceFirst('Exception: ', '')}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleSendMessage(String content) async {
+    String? tempId;
+    try {
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final userId = args?['userId'] as String?;
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('Usuário não encontrado ou ID inválido');
+      }
+
+      final currentUser = SupabaseService.currentUser;
+      if (currentUser == null) {
+        throw Exception('Usuário não autenticado');
+      }
+
+      tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      final optimisticMessage = Message(
+        id: tempId,
+        content: content,
+        senderId: currentUser.id,
+        senderName: currentUser.userMetadata?['name'] ?? 'Você',
+        createdAt: DateTime.now(),
+      );
+
+      setState(() {
+        _pendingMessages.add(optimisticMessage);
+      });
+
+      _emitCombinedMessages();
+      await SupabaseService.sendMessage(content, userId);
+      _scrollToBottom();
+    } catch (e) {
+      if (tempId != null) {
+        setState(() {
+          _pendingMessages.removeWhere((msg) => msg.id == tempId);
+        });
+        _emitCombinedMessages();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    e.toString().replaceFirst('Exception: ', ''),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.red.shade900,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade50,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -116,20 +195,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final recipientId = _cachedUserId ?? widget.userId ?? args?['userId'];
-
-    print('🔍 Build StreamBuilder - userId do widget: "${widget.userId}", dos args: "${args?['userId']}"');
+    final currentUser = SupabaseService.currentUser;
+    final userName = currentUser?.userMetadata?['name'] ?? 'Usuário';
 
     return Scaffold(
-      backgroundColor: MatrixTheme.darkerBackground,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        backgroundColor: MatrixTheme.darkBackground,
+        backgroundColor: Colors.white,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: MatrixTheme.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(
+            Icons.arrow_back_ios_rounded,
+            color: Color(0xFF374151),
+            size: 20,
+          ),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.conversations);
+            }
+          },
         ),
         title: Row(
           children: [
@@ -137,13 +224,13 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [
-                    MatrixTheme.primaryPurple,
-                    MatrixTheme.lightPurple,
+                    _getColorFromName(_getChatName()),
+                    _getColorFromName(_getChatName()).withOpacity(0.7),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(12),
+                shape: BoxShape.circle,
               ),
               child: Center(
                 child: Text(
@@ -153,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -162,154 +249,30 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: Text(
                 _getChatName(),
-                style: const TextStyle(
-                  color: MatrixTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
           ],
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                if (recipientId == null || recipientId.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Nenhum destinatário selecionado',
-                      style: TextStyle(
-                        color: MatrixTheme.textSecondary,
-                        fontSize: 16,
-                      ),
-                    ),
-                  );
-                }
-
-                return StreamBuilder<List<Message>>(
-                  stream: SupabaseService.getMessagesStream(recipientId),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.primaryPurple),
-                        ),
-                      );
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline_rounded,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Erro ao carregar mensagens',
-                              style: const TextStyle(
-                                color: MatrixTheme.textPrimary,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              snapshot.error.toString(),
-                              style: const TextStyle(
-                                color: MatrixTheme.textSecondary,
-                                fontSize: 14,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    final messages = snapshot.data ?? [];
-
-                    if (messages.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: MatrixTheme.cardBackground,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                size: 40,
-                                color: MatrixTheme.primaryPurple,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'Nenhuma mensagem ainda',
-                              style: TextStyle(
-                                color: MatrixTheme.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Envie uma mensagem para começar',
-                              style: TextStyle(
-                                color: MatrixTheme.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      Future.delayed(const Duration(milliseconds: 100), () {
-                        _scrollToBottom();
-                      });
-                    });
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: false,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final message = messages[index];
-                        final currentUser = SupabaseService.currentUser;
-                        final isMe = message.senderId == currentUser?.id;
-
-                        return MessageBubble(
-                          message: message,
-                          isMe: isMe,
-                        );
-                      },
-                    );
-                  },
-                );
-              },
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.info_outline_rounded,
+              color: Color(0xFF374151),
             ),
-          ),
-          MessageInput(
-            onSendMessage: _handleSendMessage,
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Conversa com ${_getChatName()}'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
           ),
         ],
       ),
-<<<<<<< HEAD
-    );
-  }
-=======
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -326,18 +289,13 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: Builder(
                 builder: (context) {
-                  // Priorizar userId do widget
                   String? userId = widget.userId;
 
-                  // Fallback: tentar pegar dos argumentos
                   if (userId == null || userId.isEmpty) {
                     final args = ModalRoute.of(context)?.settings.arguments
                         as Map<String, dynamic>?;
                     userId = args?['userId'] as String?;
                   }
-
-                  print(
-                      '🔍 Build StreamBuilder - userId do widget: "${widget.userId}", dos args: "${userId}"');
 
                   if (userId == null || userId.isEmpty) {
                     return Center(
@@ -367,11 +325,45 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
 
-                  // Cache para uso posterior
+                  final previousUserId = _cachedUserId;
                   _cachedUserId = userId;
 
+                  if (previousUserId != userId) {
+                    _messagesSubscription?.cancel();
+                    _messagesSubscription = null;
+                    _pendingMessages.clear();
+                    _serverMessages.clear();
+                  }
+
+                  if (_messagesSubscription == null) {
+                    _messagesSubscription = SupabaseService.getMessagesStream(userId).listen(
+                      (serverMessages) {
+                        if (!mounted) return;
+                        
+                        _serverMessages = serverMessages;
+                        
+                        setState(() {
+                          _pendingMessages.removeWhere((pending) {
+                            return serverMessages.any((server) {
+                              return server.content == pending.content &&
+                                  server.senderId == pending.senderId &&
+                                  (server.createdAt.difference(pending.createdAt).inSeconds.abs() < 5);
+                            });
+                          });
+                        });
+
+                        _emitCombinedMessages();
+                      },
+                      onError: (error) {
+                        if (!_messagesController.isClosed) {
+                          _messagesController.addError(error);
+                        }
+                      },
+                    );
+                  }
+
                   return StreamBuilder<List<Message>>(
-                    stream: SupabaseService.getMessagesStream(userId),
+                    stream: _messagesController.stream,
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         final errorMessage = snapshot.error
@@ -613,30 +605,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _getChatName() {
-    // Priorizar chatName do widget
     if (widget.chatName != null && widget.chatName!.isNotEmpty) {
       return widget.chatName!;
     }
 
-    // Fallback: tentar pegar dos argumentos
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     return args?['chatName'] as String? ?? 'Conversa';
   }
 
   String _getUserId() {
-    // Usar o cache se disponível
     if (_cachedUserId != null && _cachedUserId!.isNotEmpty) {
       return _cachedUserId!;
     }
 
-    // Caso contrário, buscar dos argumentos
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final userId = args?['userId'] as String? ?? '';
-    print('🔑 HomeScreen - userId recebido: "$userId"');
-    print('📦 HomeScreen - args completos: $args');
-    return userId;
+    return args?['userId'] as String? ?? '';
   }
 
   Color _getColorFromName(String name) {
@@ -656,7 +641,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
-    // Garantir que ambas estão no fuso horário local
     final localDate1 = date1.isUtc ? date1.toLocal() : date1;
     final localDate2 = date2.isUtc ? date2.toLocal() : date2;
     
@@ -666,7 +650,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _formatDate(DateTime date) {
-    // Garantir que está no fuso horário local
     final localDate = date.isUtc ? date.toLocal() : date;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -678,7 +661,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (messageDate == yesterday) {
       return 'ONTEM';
     } else {
-      // Formato: "Segunda-feira, 15 de Janeiro de 2024"
       final weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 
                        'Quinta-feira', 'Sexta-feira', 'Sábado'];
       final months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -751,5 +733,4 @@ class _HomeScreenState extends State<HomeScreen> {
       yield {};
     }
   }
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
 }

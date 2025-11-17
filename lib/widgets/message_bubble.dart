@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import '../models/message.dart';
-import '../theme/matrix_theme.dart';
-import 'package:intl/intl.dart';
+import '../services/supabase_service.dart';
 
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
+  final VoidCallback? onFavoriteToggled;
+  final VoidCallback? onArchivedToggled;
 
   const MessageBubble({
     super.key,
     required this.message,
     required this.isMe,
+    this.onFavoriteToggled,
+    this.onArchivedToggled,
   });
 
-<<<<<<< HEAD
-  String _formatTime(DateTime dateTime) {
-    return DateFormat('HH:mm').format(dateTime);
-=======
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
 }
@@ -142,7 +141,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _toggleArchived();
               },
             ),
-            if (widget.isMe && !widget.message.isDeleted && !widget.message.isDeletedForEveryone) ...[
+            if (widget.isMe && !widget.message.isDeleted) ...[
               if (widget.message.canBeEdited())
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
@@ -154,22 +153,14 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Deletar para mim', style: TextStyle(color: Colors.red)),
+                title: const Text('Deletar', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
-                  _deleteMessageForMe();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
-                title: const Text('Deletar para todos', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteMessageForEveryone();
+                  _deleteMessage();
                 },
               ),
             ],
-            if (!widget.message.isDeleted && !widget.message.isDeletedForEveryone)
+            if (!widget.message.isDeleted)
               ListTile(
                 leading: const Icon(Icons.add_reaction_outlined),
                 title: const Text('Adicionar reação'),
@@ -182,7 +173,6 @@ class _MessageBubbleState extends State<MessageBubble> {
         ),
       ),
     );
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
   }
 
   @override
@@ -190,93 +180,89 @@ class _MessageBubbleState extends State<MessageBubble> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isMe) ...[
+          if (!widget.isMe) ...[
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
                   colors: [
-                    MatrixTheme.primaryPurple,
-                    MatrixTheme.lightPurple,
+                    _getColorFromName(widget.message.senderName),
+                    _getColorFromName(widget.message.senderName).withOpacity(0.7),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
                 child: Text(
-                  message.senderName.isNotEmpty 
-                      ? message.senderName[0].toUpperCase() 
+                  widget.message.senderName.isNotEmpty 
+                      ? widget.message.senderName[0].toUpperCase() 
                       : '?',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
           ],
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isMe ? MatrixTheme.primaryPurple : MatrixTheme.cardBackground,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(isMe ? 20 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 20),
+            child: GestureDetector(
+              onLongPress: _showMessageOptions,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.7,
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!isMe)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        message.senderName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: MatrixTheme.lightPurple,
-                        ),
-<<<<<<< HEAD
-                      ),
-                    ),
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: isMe ? Colors.white : MatrixTheme.textPrimary,
-                      height: 1.4,
-                    ),
+                decoration: BoxDecoration(
+                  gradient: widget.isMe
+                      ? const LinearGradient(
+                          colors: [
+                            Color(0xFF6366F1),
+                            Color(0xFF8B5CF6),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: widget.isMe ? null : Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(20),
+                    topRight: const Radius.circular(20),
+                    bottomLeft: Radius.circular(widget.isMe ? 20 : 4),
+                    bottomRight: Radius.circular(widget.isMe ? 4 : 20),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.isMe 
+                          ? const Color(0xFF6366F1).withOpacity(0.2)
+                          : Colors.black.withOpacity(0.05),
+                      blurRadius: widget.isMe ? 8 : 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (message.isFavorite) ...[
-                        Icon(
-                          Icons.star_rounded,
-                          size: 14,
-                          color: isMe ? Colors.white70 : MatrixTheme.textTertiary,
+                      if (!widget.isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            widget.message.senderName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _getColorFromName(widget.message.senderName),
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                      ],
-                      Text(
-                        _formatTime(message.createdAt),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isMe ? Colors.white70 : MatrixTheme.textTertiary,
-                        ),
-=======
                       // Mostrar imagem se existir
                       if (widget.message.imageUrl != null) ...[
                         ClipRRect(
@@ -300,22 +286,20 @@ class _MessageBubbleState extends State<MessageBubble> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.message.isDeletedForEveryone 
+                              widget.message.isDeleted 
                                   ? 'Esta mensagem foi deletada'
-                                  : widget.message.isDeleted 
-                                      ? 'Você deletou esta mensagem'
-                                      : widget.message.content,
+                                  : widget.message.content,
                               style: TextStyle(
                                 fontSize: 15,
                                 color: widget.isMe 
-                                    ? (widget.message.isDeleted || widget.message.isDeletedForEveryone
+                                    ? (widget.message.isDeleted 
                                         ? Colors.white.withOpacity(0.6)
                                         : Colors.white)
-                                    : (widget.message.isDeleted || widget.message.isDeletedForEveryone
+                                    : (widget.message.isDeleted
                                         ? const Color(0xFF9CA3AF)
                                         : const Color(0xFF374151)),
                                 height: 1.4,
-                                fontStyle: widget.message.isDeleted || widget.message.isDeletedForEveryone
+                                fontStyle: widget.message.isDeleted 
                                     ? FontStyle.italic 
                                     : FontStyle.normal,
                               ),
@@ -393,7 +377,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          if (widget.message.isEdited && !widget.message.isDeleted && !widget.message.isDeletedForEveryone) ...[
+                          if (widget.message.isEdited && !widget.message.isDeleted) ...[
                             const SizedBox(width: 4),
                             Text(
                               'editado',
@@ -415,29 +399,18 @@ class _MessageBubbleState extends State<MessageBubble> {
                             ),
                           ],
                         ],
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
                       ),
-                      if (isMe) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.done_all_rounded,
-                          size: 16,
-                          color: Colors.white70,
-                        ),
-                      ],
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-          if (isMe) const SizedBox(width: 40),
+          if (widget.isMe) const SizedBox(width: 48),
         ],
       ),
     );
   }
-<<<<<<< HEAD
-=======
 
   Color _getColorFromName(String name) {
     final colors = [
@@ -563,12 +536,12 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  void _deleteMessageForMe() {
+  void _deleteMessage() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Deletar mensagem'),
-        content: const Text('Esta mensagem será deletada apenas para você. Tem certeza?'),
+        content: const Text('Tem certeza que deseja deletar esta mensagem?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -577,12 +550,12 @@ class _MessageBubbleState extends State<MessageBubble> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await SupabaseService.deleteMessageForMe(widget.message.id);
+                await SupabaseService.deleteMessage(widget.message.id);
                 if (mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Mensagem deletada para você'),
+                      content: Text('Mensagem deletada'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -609,52 +582,4 @@ class _MessageBubbleState extends State<MessageBubble> {
       ),
     );
   }
-
-  void _deleteMessageForEveryone() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Deletar para todos'),
-        content: const Text('Esta mensagem será deletada para todos os participantes da conversa. Esta ação não pode ser desfeita.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await SupabaseService.deleteMessageForEveryone(widget.message.id);
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Mensagem deletada para todos'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Erro ao deletar: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Deletar para todos'),
-          ),
-        ],
-      ),
-    );
-  }
->>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
 }

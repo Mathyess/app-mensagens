@@ -32,4 +32,20 @@ class AppUser {
       'created_at': createdAt.toIso8601String(),
     };
   }
+
+  AppUser copyWith({
+    String? id,
+    String? email,
+    String? name,
+    String? avatarUrl,
+    DateTime? createdAt,
+  }) {
+    return AppUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      name: name ?? this.name,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

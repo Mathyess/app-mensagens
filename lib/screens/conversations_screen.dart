@@ -12,6 +12,7 @@ class ConversationsScreen extends StatefulWidget {
 
 class _ConversationsScreenState extends State<ConversationsScreen> {
   List<Map<String, dynamic>> _conversations = [];
+  List<Map<String, dynamic>> _filteredConversations = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
 
@@ -19,6 +20,37 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   void initState() {
     super.initState();
     _loadConversations();
+    
+    // Adicionar listener para busca
+    _searchController.addListener(_filterConversations);
+    
+    // Atualizar status online quando entrar
+    _updateOnlineStatus(true);
+  }
+  
+  Future<void> _updateOnlineStatus(bool isOnline) async {
+    try {
+      await SupabaseService.updateOnlineStatus(isOnline);
+    } catch (e) {
+      print('Erro ao atualizar status online: $e');
+    }
+  }
+  
+  void _filterConversations() {
+    final query = _searchController.text.toLowerCase().trim();
+    if (query.isEmpty) {
+      setState(() {
+        _filteredConversations = _conversations;
+      });
+    } else {
+      setState(() {
+        _filteredConversations = _conversations.where((conv) {
+          final name = (conv['name'] as String? ?? '').toLowerCase();
+          final lastMessage = (conv['lastMessage'] as String? ?? '').toLowerCase();
+          return name.contains(query) || lastMessage.contains(query);
+        }).toList();
+      });
+    }
   }
 
   Future<void> _loadConversations() async {
@@ -27,6 +59,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       if (mounted) {
         setState(() {
           _conversations = conversations;
+          _filteredConversations = conversations;
           _isLoading = false;
         });
       }
@@ -54,6 +87,13 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   @override
   void dispose() {
+<<<<<<< HEAD
+=======
+    // Atualizar status offline quando sair
+    _updateOnlineStatus(false);
+    _fabAnimationController.dispose();
+    _searchAnimationController.dispose();
+>>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
     _searchController.dispose();
     super.dispose();
   }
@@ -103,11 +143,36 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
+<<<<<<< HEAD
               style: const TextStyle(color: MatrixTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Buscar conversas...',
                 hintStyle: const TextStyle(color: MatrixTheme.textTertiary),
                 prefixIcon: const Icon(Icons.search_rounded, color: MatrixTheme.textTertiary),
+=======
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Buscar conversas...',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF9CA3AF),
+                  size: 20,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 20),
+                        color: const Color(0xFF9CA3AF),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+>>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
                 filled: true,
                 fillColor: MatrixTheme.cardBackground,
                 border: OutlineInputBorder(
@@ -126,11 +191,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(MatrixTheme.primaryPurple),
                     ),
                   )
-                : _conversations.isEmpty
+                : _filteredConversations.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+<<<<<<< HEAD
                             Container(
                               width: 80,
                               height: 80,
@@ -159,17 +225,50 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               style: TextStyle(
                                 color: MatrixTheme.textSecondary,
                                 fontSize: 14,
+=======
+                            Icon(
+                              _searchController.text.isNotEmpty
+                                  ? Icons.search_off_rounded
+                                  : Icons.chat_bubble_outline_rounded,
+                              size: 64,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _searchController.text.isNotEmpty
+                                  ? 'Nenhuma conversa encontrada'
+                                  : 'Nenhuma conversa ainda',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _searchController.text.isNotEmpty
+                                  ? 'Tente buscar por outro termo'
+                                  : 'Toque no botão + para iniciar uma conversa',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF9CA3AF),
+>>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
                               ),
                             ),
                           ],
                         ),
                       )
                     : ListView.builder(
+<<<<<<< HEAD
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: _conversations.length,
                         itemBuilder: (context, index) {
                           final conversation = _conversations[index];
                           return _buildConversationTile(conversation);
+=======
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: _filteredConversations.length,
+                        itemBuilder: (context, index) {
+                          final conversation = _filteredConversations[index];
+                          return _buildSimpleConversationTile(conversation);
+>>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
                         },
                       ),
           ),
@@ -186,7 +285,13 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildConversationTile(Map<String, dynamic> conversation) {
+=======
+  Widget _buildSimpleConversationTile(Map<String, dynamic> conversation) {
+    final isOnline = conversation['isOnline'] ?? false;
+    
+>>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -218,7 +323,28 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+<<<<<<< HEAD
           ),
+=======
+            if (isOnline)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+>>>>>>> 4b00f9be3bc32c16c5cfc51e22d379bba8d48a59
         ),
         title: Row(
           children: [

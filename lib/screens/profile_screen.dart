@@ -322,10 +322,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               backgroundColor: Colors.white,
                               backgroundImage: _imageFile != null
                                   ? FileImage(_imageFile!)
-                                  : (_userProfile?.avatarUrl != null
+                                  : (_userProfile?.avatarUrl != null && _userProfile!.avatarUrl!.isNotEmpty
                                       ? NetworkImage(_userProfile!.avatarUrl!)
                                       : null) as ImageProvider?,
-                              child: _imageFile == null && _userProfile?.avatarUrl == null
+                              child: _imageFile == null && (_userProfile?.avatarUrl == null || _userProfile!.avatarUrl!.isEmpty)
                                   ? Icon(
                                       Icons.person,
                                       size: 60,

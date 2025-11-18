@@ -89,7 +89,6 @@ class _ConversationTileState extends State<ConversationTile>
                 ),
                 child: Row(
                   children: [
-                    // Avatar com indicador online
                     Stack(
                       children: [
                         Container(
@@ -136,7 +135,6 @@ class _ConversationTileState extends State<ConversationTile>
                       ],
                     ),
                     const SizedBox(width: 16),
-                    // Conteúdo da conversa
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

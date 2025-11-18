@@ -141,6 +141,15 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _toggleArchived();
               },
             ),
+            if (!widget.message.isDeleted)
+              ListTile(
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: const Text('Adicionar reação'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showReactionPicker();
+                },
+              ),
             if (widget.isMe && !widget.message.isDeleted) ...[
               if (widget.message.canBeEdited())
                 ListTile(
@@ -160,15 +169,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                 },
               ),
             ],
-            if (!widget.message.isDeleted)
-              ListTile(
-                leading: const Icon(Icons.add_reaction_outlined),
-                title: const Text('Adicionar reação'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showReactionPicker();
-                },
-              ),
           ],
         ),
       ),
@@ -263,7 +263,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                             ),
                           ),
                         ),
-                      // Mostrar imagem se existir
                       if (widget.message.imageUrl != null) ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
@@ -315,7 +314,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                           ],
                         ],
                       ),
-                      // Mostrar reações se existirem
                       if (widget.message.reactions != null && widget.message.reactions!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(
@@ -392,10 +390,18 @@ class _MessageBubbleState extends State<MessageBubble> {
                           ],
                           if (widget.isMe) ...[
                             const SizedBox(width: 6),
-                            Icon(
-                              Icons.done_all_rounded,
-                              size: 16,
-                              color: Colors.white.withOpacity(0.7),
+                            StreamBuilder<List<String>>(
+                              stream: SupabaseService.getMessageReadersStream(widget.message.id),
+                              builder: (context, snapshot) {
+                                final isRead = snapshot.hasData && snapshot.data!.isNotEmpty;
+                                return Icon(
+                                  Icons.done_all_rounded,
+                                  size: 16,
+                                  color: isRead 
+                                      ? const Color(0xFF00BFA5) // Verde água (visto azul do WhatsApp)
+                                      : Colors.white.withOpacity(0.7),
+                                );
+                              },
                             ),
                           ],
                         ],
@@ -429,7 +435,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   String _formatTime(DateTime dateTime) {
-    // Garantir que está no fuso horário local
+    // Converter para fuso horário local
     final localTime = dateTime.isUtc ? dateTime.toLocal() : dateTime;
     final hour = localTime.hour.toString().padLeft(2, '0');
     final minute = localTime.minute.toString().padLeft(2, '0');

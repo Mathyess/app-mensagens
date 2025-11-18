@@ -39,7 +39,6 @@ class _MessageInputState extends State<MessageInput>
         setState(() {
           _hasText = hasTextNow;
         });
-        // Enviar indicador de typing
         _handleTyping(hasTextNow);
       }
     });
@@ -75,20 +74,19 @@ class _MessageInputState extends State<MessageInput>
     if (widget.recipientId == null) return;
     
     try {
-      // Obter conversation ID - simplificado (deveria ser passado como parâmetro)
-      // Por enquanto, vamos apenas tentar enviar o typing se já tivermos o conversationId
+      // Enviar indicador de digitação se tivermos o ID da conversa
       if (_typingConversationId != null) {
         await SupabaseService.sendTypingIndicator(_typingConversationId!, isTyping);
       }
     } catch (e) {
-      // Ignorar erros de typing
+      // Ignorar erros de digitação
       print('Erro ao enviar typing: $e');
     }
   }
 
   @override
   void dispose() {
-    // Parar indicador de typing ao sair
+    // Parar indicador de digitação ao sair
     if (_typingConversationId != null) {
       SupabaseService.sendTypingIndicator(_typingConversationId!, false);
     }
@@ -102,7 +100,7 @@ class _MessageInputState extends State<MessageInput>
   void _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isNotEmpty && !_isUploading) {
-      // Parar indicador de typing
+      // Parar indicador de digitação
       if (_typingConversationId != null) {
         await SupabaseService.sendTypingIndicator(_typingConversationId!, false);
       }
@@ -185,10 +183,8 @@ class _MessageInputState extends State<MessageInput>
     });
 
     try {
-      // Fazer upload do arquivo
       final fileUrl = await SupabaseService.uploadFile(filePath, fileName);
       
-      // Enviar mensagem com o arquivo
       await SupabaseService.sendMessage(
         '',
         widget.recipientId!,
@@ -237,7 +233,7 @@ class _MessageInputState extends State<MessageInput>
       child: SafeArea(
         child: Row(
           children: [
-            // Botão de anexo (imagem)
+            // Botão de anexo
             if (!_isUploading)
               IconButton(
                 icon: const Icon(
@@ -260,7 +256,6 @@ class _MessageInputState extends State<MessageInput>
                   ),
                 ),
               ),
-            // Campo de texto simples
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -294,7 +289,6 @@ class _MessageInputState extends State<MessageInput>
               ),
             ),
             const SizedBox(width: 12),
-            // Botão de enviar simples
             AnimatedBuilder(
               animation: _sendAnimation,
               builder: (context, child) {

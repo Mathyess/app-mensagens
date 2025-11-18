@@ -11,11 +11,15 @@ import '../routes.dart';
 class HomeScreen extends StatefulWidget {
   final String? userId;
   final String? chatName;
+  final String? conversationId;
+  final bool isGroup;
 
   const HomeScreen({
     super.key,
     this.userId,
     this.chatName,
+    this.conversationId,
+    this.isGroup = false,
   });
 
   @override
@@ -26,11 +30,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _cachedUserId;
   String? _cachedConversationId;
+  bool _isGroup = false;
   Map<String, bool> _typingUsers = {};
   final StreamController<List<Message>> _messagesController = StreamController<List<Message>>.broadcast();
   StreamSubscription<List<Message>>? _messagesSubscription;
   List<Message> _pendingMessages = [];
   List<Message> _serverMessages = [];
+  String? _otherUserAvatarUrl;
+  bool _isLoadingAvatar = true;
 
   @override
   void dispose() {
@@ -43,17 +50,63 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (widget.userId != null && widget.userId!.isNotEmpty) {
-      _cachedUserId = widget.userId;
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    
+    if (widget.conversationId != null) {
+      _cachedConversationId = widget.conversationId;
+      _isGroup = widget.isGroup;
+      _markMessagesAsRead();
       return;
     }
 
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final newUserId = args?['userId'] as String?;
+    if (args?['conversationId'] != null) {
+      _cachedConversationId = args?['conversationId'] as String;
+      _isGroup = args?['isGroup'] as bool? ?? false;
+      _markMessagesAsRead();
+      return;
+    }
 
+    if (widget.userId != null && widget.userId!.isNotEmpty) {
+      _cachedUserId = widget.userId;
+      _loadOtherUserAvatar(widget.userId!);
+      return;
+    }
+
+    final newUserId = args?['userId'] as String?;
     if (newUserId != null && newUserId.isNotEmpty) {
       _cachedUserId = newUserId;
+      _loadOtherUserAvatar(newUserId);
+    }
+  }
+  
+  Future<void> _loadOtherUserAvatar(String userId) async {
+    try {
+      final client = Supabase.instance.client;
+      final profile = await client
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', userId)
+          .single();
+      
+      if (mounted) {
+        setState(() {
+          _otherUserAvatarUrl = profile['avatar_url'];
+          _isLoadingAvatar = false;
+        });
+      }
+    } catch (e) {
+      print('Erro ao carregar avatar: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAvatar = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    if (_cachedConversationId != null) {
+      await SupabaseService.markMessagesAsRead(_cachedConversationId!);
     }
   }
 
@@ -125,14 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handleSendMessage(String content) async {
     String? tempId;
     try {
-      final args =
-          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      final userId = args?['userId'] as String?;
-
-      if (userId == null || userId.isEmpty) {
-        throw Exception('Usuário não encontrado ou ID inválido');
-      }
-
       final currentUser = SupabaseService.currentUser;
       if (currentUser == null) {
         throw Exception('Usuário não autenticado');
@@ -152,7 +197,20 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       _emitCombinedMessages();
-      await SupabaseService.sendMessage(content, userId);
+
+      if (_isGroup && _cachedConversationId != null) {
+        await SupabaseService.sendGroupMessage(_cachedConversationId!, content);
+      } else {
+        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+        final userId = args?['userId'] as String? ?? widget.userId;
+
+        if (userId == null || userId.isEmpty) {
+          throw Exception('Usuário não encontrado ou ID inválido');
+        }
+
+        await SupabaseService.sendMessage(content, userId);
+      }
+
       _scrollToBottom();
     } catch (e) {
       if (tempId != null) {
@@ -220,31 +278,68 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         title: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getColorFromName(_getChatName()),
-                    _getColorFromName(_getChatName()).withOpacity(0.7),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  _getChatName().isNotEmpty
-                      ? _getChatName()[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+            _otherUserAvatarUrl != null && _otherUserAvatarUrl!.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.network(
+                      _otherUserAvatarUrl!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _getColorFromName(_getChatName()),
+                                _getColorFromName(_getChatName()).withOpacity(0.7),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              _getChatName().isNotEmpty
+                                  ? _getChatName()[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _getColorFromName(_getChatName()),
+                          _getColorFromName(_getChatName()).withOpacity(0.7),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _getChatName().isNotEmpty
+                            ? _getChatName()[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -289,77 +384,108 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: Builder(
                 builder: (context) {
-                  String? userId = widget.userId;
-
-                  if (userId == null || userId.isEmpty) {
-                    final args = ModalRoute.of(context)?.settings.arguments
-                        as Map<String, dynamic>?;
-                    userId = args?['userId'] as String?;
-                  }
-
-                  if (userId == null || userId.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline,
-                              size: 64, color: Colors.red.shade300),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Erro: ID do usuário não encontrado',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Widget userId: ${widget.userId}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final previousUserId = _cachedUserId;
-                  _cachedUserId = userId;
-
-                  if (previousUserId != userId) {
-                    _messagesSubscription?.cancel();
-                    _messagesSubscription = null;
-                    _pendingMessages.clear();
-                    _serverMessages.clear();
-                  }
-
-                  if (_messagesSubscription == null) {
-                    _messagesSubscription = SupabaseService.getMessagesStream(userId).listen(
-                      (serverMessages) {
-                        if (!mounted) return;
-                        
-                        _serverMessages = serverMessages;
-                        
-                        setState(() {
-                          _pendingMessages.removeWhere((pending) {
-                            return serverMessages.any((server) {
-                              return server.content == pending.content &&
-                                  server.senderId == pending.senderId &&
-                                  (server.createdAt.difference(pending.createdAt).inSeconds.abs() < 5);
+                  if (_isGroup && _cachedConversationId != null) {
+                    if (_messagesSubscription == null) {
+                      _messagesSubscription = SupabaseService.getGroupMessagesStream(_cachedConversationId!).listen(
+                        (serverMessages) {
+                          if (!mounted) return;
+                          
+                          _serverMessages = serverMessages;
+                          
+                          setState(() {
+                            _pendingMessages.removeWhere((pending) {
+                              return serverMessages.any((server) {
+                                return server.content == pending.content &&
+                                    server.senderId == pending.senderId &&
+                                    (server.createdAt.difference(pending.createdAt).inSeconds.abs() < 5);
+                              });
                             });
                           });
-                        });
 
-                        _emitCombinedMessages();
-                      },
-                      onError: (error) {
-                        if (!_messagesController.isClosed) {
-                          _messagesController.addError(error);
-                        }
-                      },
-                    );
+                          _emitCombinedMessages();
+                        },
+                        onError: (error) {
+                          if (!_messagesController.isClosed) {
+                            _messagesController.addError(error);
+                          }
+                        },
+                      );
+                    }
+                  } else {
+                    String? userId = widget.userId;
+
+                    if (userId == null || userId.isEmpty) {
+                      final args = ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>?;
+                      userId = args?['userId'] as String?;
+                    }
+
+                    if (userId == null || userId.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline,
+                                size: 64, color: Colors.red.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Erro: ID do usuário não encontrado',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final previousUserId = _cachedUserId;
+                    _cachedUserId = userId;
+
+                    if (previousUserId != userId) {
+                      _messagesSubscription?.cancel();
+                      _messagesSubscription = null;
+                      _pendingMessages.clear();
+                      _serverMessages.clear();
+                    }
+
+                    if (_messagesSubscription == null) {
+                      // Carregar conversationId se ainda não tiver
+                      if (_cachedConversationId == null) {
+                        _loadConversationId(userId);
+                      }
+                      
+                      _messagesSubscription = SupabaseService.getMessagesStream(userId).listen(
+                        (serverMessages) async {
+                          if (!mounted) return;
+                          
+                          _serverMessages = serverMessages;
+                          
+                          setState(() {
+                            _pendingMessages.removeWhere((pending) {
+                              return serverMessages.any((server) {
+                                return server.content == pending.content &&
+                                    server.senderId == pending.senderId &&
+                                    (server.createdAt.difference(pending.createdAt).inSeconds.abs() < 5);
+                              });
+                            });
+                          });
+
+                          _emitCombinedMessages();
+                          
+                          // Marcar mensagens como lidas quando receber novas mensagens
+                          if (_cachedConversationId != null) {
+                            await SupabaseService.markMessagesAsRead(_cachedConversationId!);
+                          }
+                        },
+                        onError: (error) {
+                          if (!_messagesController.isClosed) {
+                            _messagesController.addError(error);
+                          }
+                        },
+                      );
+                    }
                   }
 
                   return StreamBuilder<List<Message>>(

@@ -10,7 +10,7 @@ class Message {
   final bool isDeleted;
   final bool isEdited;
   final DateTime? editedAt;
-  final Map<String, List<String>>? reactions; // emoji -> lista de user_ids
+  final Map<String, List<String>>? reactions;
 
   Message({
     required this.id,
@@ -28,7 +28,6 @@ class Message {
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
-    // Parse reactions if they exist
     Map<String, List<String>>? reactions;
     if (json['reactions'] != null) {
       if (json['reactions'] is Map) {
@@ -43,7 +42,6 @@ class Message {
       }
     }
 
-    // Converter data UTC para fuso horário local
     final createdAtUtc = DateTime.parse(json['created_at']);
     final createdAt = createdAtUtc.isUtc 
         ? createdAtUtc.toLocal() 
@@ -120,7 +118,6 @@ class Message {
     );
   }
 
-  // Verifica se a mensagem pode ser editada (até 15 minutos)
   bool canBeEdited() {
     if (isDeleted) return false;
     final now = DateTime.now();

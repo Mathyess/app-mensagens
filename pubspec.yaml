@@ -1,5 +1,5 @@
 name: app_mensagens
-description: Aplicativo de mensagens com Flutter e Supabase
+description: Connect - Aplicativo de mensagens com Flutter e Supabase
 
 publish_to: 'none'
 
@@ -16,6 +16,10 @@ dependencies:
   flutter_dotenv: ^6.0.0
   image_picker: ^1.0.7
   package_info_plus: ^5.0.1
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  connectivity_plus: ^5.0.2
+  uuid: ^4.0.0
 
 dev_dependencies:
   flutter_test:

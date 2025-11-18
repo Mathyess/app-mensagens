@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/message.dart';
 import '../models/user.dart';
+import 'local_storage_service.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -51,24 +53,19 @@ class SupabaseService {
         password: password,
       );
 
-      // Se o usuário foi criado mas precisa confirmar email
       if (response.user != null && response.session == null) {
-        // Criar perfil mesmo sem sessão ativa
         try {
           await _client.from('profiles').insert({
             'id': response.user!.id,
             'name': name,
           });
         } catch (e) {
-          // Ignorar erro se o perfil já existe
           print('Perfil já existe ou erro ao criar: $e');
         }
         
-        // Lançar exceção especial para confirmação de email
         throw Exception('CONFIRM_EMAIL');
       }
 
-      // Se chegou aqui, o usuário foi criado e já está logado
       if (response.user != null) {
         await _client.from('profiles').insert({
           'id': response.user!.id,
@@ -111,7 +108,6 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return null;
 
-      // Buscar perfil no banco de dados
       try {
         final profile = await _client
             .from('profiles')
@@ -127,7 +123,6 @@ class SupabaseService {
           'created_at': profile['created_at'] ?? user.createdAt ?? DateTime.now().toIso8601String(),
         });
       } catch (e) {
-        // Se não encontrar perfil, criar um simples baseado nos dados do auth
         return AppUser.fromJson({
           'id': user.id,
           'email': user.email ?? '',
@@ -146,14 +141,12 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return [];
 
-      // Retornar lista vazia - mensagens serão carregadas via stream
       return [];
     } catch (e) {
       throw Exception('Erro ao carregar mensagens: ${e.toString()}');
     }
   }
 
-  // Upload de arquivo para o Storage do Supabase
   static Future<String> uploadFile(String filePath, String fileName) async {
     try {
       final user = currentUser;
@@ -161,12 +154,10 @@ class SupabaseService {
         throw Exception('Você precisa estar logado para fazer upload.');
       }
 
-      // Criar nome único para o arquivo
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final uniqueFileName = '$timestamp-$fileName';
       final fileExtension = fileName.split('.').last.toLowerCase();
       
-      // Determinar pasta baseada no tipo
       String folder = 'files';
       if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(fileExtension)) {
         folder = 'images';
@@ -174,17 +165,14 @@ class SupabaseService {
 
       Uint8List fileBytes;
       
-      // Sempre usar XFile (funciona tanto na web quanto mobile/desktop)
       final xfile = XFile(filePath);
       fileBytes = await xfile.readAsBytes();
       
-      // Verificar tamanho do arquivo (limite de 20MB)
       final fileSizeInMB = fileBytes.length / (1024 * 1024);
       if (fileSizeInMB > 20) {
         throw Exception('Arquivo muito grande. Tamanho máximo: 20MB');
       }
       
-      // Upload para o Storage (bucket 'messages')
       await _client.storage
           .from('messages')
           .uploadBinary(
@@ -196,13 +184,18 @@ class SupabaseService {
             ),
           );
 
-      // Obter URL pública
       final publicUrl = _client.storage
           .from('messages')
           .getPublicUrl('$folder/$uniqueFileName');
 
       print('✅ Arquivo enviado: $publicUrl');
-      return publicUrl;
+      print('📝 Tipo da URL: ${publicUrl.runtimeType}');
+      
+      // Garantir que retornamos uma string
+      final urlString = publicUrl.toString();
+      print('🔗 URL final: $urlString');
+      
+      return urlString;
     } catch (e) {
       print('❌ Erro ao fazer upload: $e');
       if (e.toString().contains('already exists')) {
@@ -245,17 +238,11 @@ class SupabaseService {
         throw Exception('Você precisa estar logado para enviar mensagens.');
       }
 
-      print('📤 Enviando mensagem para: $recipientId');
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final isOnline = connectivityResult != ConnectivityResult.none;
 
-      // Criar ou obter conversa direta
-      final conversationId = await _client.rpc('create_direct_conversation', params: {
-        'user1_id': user.id,
-        'user2_id': recipientId
-      });
+      print('📤 Enviando mensagem para: $recipientId (Online: $isOnline)');
 
-      print('💬 Conversa ID: $conversationId');
-
-      // Determinar tipo de mensagem
       String messageType = 'text';
       String? fileUrlToUse;
       if (imageUrl != null) {
@@ -266,23 +253,120 @@ class SupabaseService {
         fileUrlToUse = fileUrl;
       }
 
-      // Inserir mensagem no banco
-      final response = await _client.from('messages').insert({
-        'conversation_id': conversationId,
-        'sender_id': user.id,
-        'content': content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
-        'message_type': messageType,
-        'file_url': fileUrlToUse,
-      }).select().single();
+      String conversationId;
+      
+      if (isOnline) {
+        conversationId = await _client.rpc('create_direct_conversation', params: {
+          'user1_id': user.id,
+          'user2_id': recipientId
+        });
 
-      print('✅ Mensagem enviada: ${response['id']}');
+        print('💬 Conversa ID: $conversationId');
+
+        final response = await _client.from('messages').insert({
+          'conversation_id': conversationId,
+          'sender_id': user.id,
+          'content': content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
+          'message_type': messageType,
+          'file_url': fileUrlToUse,
+        }).select().single();
+
+        print('✅ Mensagem enviada: ${response['id']}');
+      } else {
+        conversationId = 'temp_${user.id}_$recipientId';
+        
+        await LocalStorageService.savePendingMessage(
+          conversationId: conversationId,
+          content: content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
+          fileUrl: fileUrlToUse,
+          messageType: messageType,
+          isGroup: false,
+        );
+        print('💾 Mensagem salva localmente para envio posterior');
+      }
     } catch (e) {
       print('❌ Erro ao enviar mensagem: $e');
       if (e.toString().contains('NetworkException') || 
           e.toString().contains('SocketException')) {
-        throw Exception('Erro de conexão. Verifique sua internet.');
+        try {
+          final user = currentUser;
+          if (user != null) {
+            final conversationId = 'temp_${user.id}_$recipientId';
+            
+            String messageType = 'text';
+            String? fileUrlToUse;
+            if (imageUrl != null) {
+              messageType = 'image';
+              fileUrlToUse = imageUrl;
+            } else if (fileUrl != null) {
+              messageType = 'file';
+              fileUrlToUse = fileUrl;
+            }
+
+            await LocalStorageService.savePendingMessage(
+              conversationId: conversationId,
+              content: content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
+              fileUrl: fileUrlToUse,
+              messageType: messageType,
+              isGroup: false,
+            );
+          }
+        } catch (_) {}
+        throw Exception('Erro de conexão. Mensagem será enviada quando a conexão for restaurada.');
       }
       throw Exception('Erro ao enviar mensagem: ${e.toString()}');
+    }
+  }
+
+  static Future<void> syncPendingMessages() async {
+    try {
+      final pending = await LocalStorageService.getPendingMessages();
+      if (pending.isEmpty) return;
+
+      final user = currentUser;
+      if (user == null) return;
+
+      for (final pendingMsg in pending) {
+        try {
+          final conversationId = pendingMsg['conversation_id'] as String;
+          
+          if (pendingMsg['is_group'] == 1) {
+            await sendGroupMessage(
+              conversationId,
+              pendingMsg['content'] as String,
+              imageUrl: pendingMsg['file_url'] as String?,
+              fileUrl: pendingMsg['file_url'] as String?,
+            );
+          } else {
+            String actualConversationId = conversationId;
+            
+            if (conversationId.startsWith('temp_')) {
+              final parts = conversationId.split('_');
+              if (parts.length >= 3) {
+                final recipientId = parts[2];
+                actualConversationId = await _client.rpc('create_direct_conversation', params: {
+                  'user1_id': user.id,
+                  'user2_id': recipientId
+                });
+              }
+            }
+            
+            await _client.from('messages').insert({
+              'conversation_id': actualConversationId,
+              'sender_id': user.id,
+              'content': pendingMsg['content'],
+              'message_type': pendingMsg['message_type'],
+              'file_url': pendingMsg['file_url'],
+            });
+          }
+          
+          await LocalStorageService.removePendingMessage(pendingMsg['id'] as String);
+        } catch (e) {
+          print('Erro ao sincronizar mensagem pendente: $e');
+        }
+      }
+    } catch (e) {
+      print('Erro ao sincronizar mensagens pendentes: $e');
     }
   }
 
@@ -294,7 +378,6 @@ class SupabaseService {
       return;
     }
 
-    // Validar recipientId
     if (recipientId.isEmpty) {
       print('❌ recipientId está vazio');
       yield [];
@@ -304,7 +387,6 @@ class SupabaseService {
     try {
       print('📤 Buscando conversa com: $recipientId');
       
-      // Criar ou obter conversa direta
       final conversationId = await _client.rpc('create_direct_conversation', params: {
         'user1_id': user.id,
         'user2_id': recipientId
@@ -312,17 +394,23 @@ class SupabaseService {
 
       print('📱 Conversation ID: $conversationId');
 
-      // Buscar nome do remetente para cada mensagem
+      try {
+        final cachedMessages = await LocalStorageService.getCachedMessages(conversationId);
+        if (cachedMessages.isNotEmpty) {
+          yield cachedMessages;
+        }
+      } catch (e) {
+        print('Erro ao carregar cache: $e');
+      }
+
       final profiles = <String, String>{};
       
-      // Função auxiliar para processar mensagens
       List<Message> processMessages(List<dynamic> data) {
         final messages = <Message>[];
         
         for (final msg in data) {
           final senderId = msg['sender_id'];
           
-          // Parse reactions
           Map<String, List<String>>? reactions;
           if (msg['reactions'] != null && msg['reactions'] is Map) {
             reactions = Map<String, List<String>>.from(
@@ -335,7 +423,6 @@ class SupabaseService {
             );
           }
 
-          // Converter data UTC para fuso horário local
           final createdAtUtc = DateTime.parse(msg['created_at']);
           final createdAt = createdAtUtc.isUtc 
               ? createdAtUtc.toLocal() 
@@ -367,7 +454,6 @@ class SupabaseService {
         return messages;
       }
       
-      // Primeiro, carregar mensagens existentes
       try {
         final initialMessages = await _client
             .from('messages')
@@ -377,7 +463,6 @@ class SupabaseService {
         
         print('📥 Carregando ${initialMessages.length} mensagens existentes');
         
-        // Buscar nomes dos perfis em batch
         final senderIds = initialMessages.map((m) => m['sender_id'] as String).toSet().toList();
         if (senderIds.isNotEmpty) {
           final profilesData = await _client
@@ -392,12 +477,18 @@ class SupabaseService {
         
         final messages = processMessages(initialMessages);
         print('✅ Enviando ${messages.length} mensagens iniciais para o UI');
+        
+        try {
+          await LocalStorageService.cacheMessages(conversationId, messages);
+        } catch (e) {
+          print('Erro ao salvar no cache: $e');
+        }
+        
         yield messages;
       } catch (e) {
         print('❌ Erro ao carregar mensagens iniciais: $e');
       }
       
-      // Depois, escutar novas mensagens via stream
       await for (final data in _client
           .from('messages')
           .stream(primaryKey: ['id'])
@@ -406,7 +497,6 @@ class SupabaseService {
         
         print('📨 Recebido ${data.length} mensagens do stream');
         
-        // Buscar nomes dos perfis em batch para novas mensagens
         final senderIds = data.map((m) => m['sender_id'] as String).toSet().toList();
         final newSenderIds = senderIds.where((id) => !profiles.containsKey(id)).toList();
         
@@ -422,7 +512,6 @@ class SupabaseService {
             }
           } catch (e) {
             print('❌ Erro ao buscar perfis: $e');
-            // Preencher com valores padrão
             for (final id in newSenderIds) {
               profiles[id] = 'Usuário';
             }
@@ -431,6 +520,13 @@ class SupabaseService {
         
         final messages = processMessages(data);
         print('✅ Enviando ${messages.length} mensagens do stream para o UI');
+        
+        try {
+          await LocalStorageService.cacheMessages(conversationId, messages);
+        } catch (e) {
+          print('Erro ao atualizar cache: $e');
+        }
+        
         yield messages;
       }
     } catch (e) {
@@ -448,14 +544,12 @@ class SupabaseService {
         throw Exception('Você precisa estar logado para atualizar o perfil.');
       }
 
-      // Atualizar nome no auth se fornecido
       if (name != null) {
         await _client.auth.updateUser(
           UserAttributes(data: {'name': name}),
         );
       }
 
-      // Atualizar perfil no banco
       final updateData = <String, dynamic>{};
       if (name != null) {
         updateData['name'] = name;
@@ -463,7 +557,6 @@ class SupabaseService {
       if (avatarUrl != null) {
         updateData['avatar_url'] = avatarUrl;
       } else if (avatarUrl == null && name == null) {
-        // Se avatarUrl foi explicitamente null, remover
         updateData['avatar_url'] = null;
       }
       
@@ -489,7 +582,6 @@ class SupabaseService {
         throw Exception('Você precisa estar logado.');
       }
 
-      // Atualizar status de favorito no banco de dados
       await _client
           .from('messages')
           .update({
@@ -522,7 +614,6 @@ class SupabaseService {
           .map((conv) => conv['conversation_id'] as String)
           .toList();
 
-      // Buscar mensagens favoritas nessas conversas
       final response = await _client
           .from('messages')
           .select('''
@@ -540,7 +631,6 @@ class SupabaseService {
             ? (msg['profiles'] as Map)['name'] ?? 'Usuário'
             : 'Usuário';
 
-        // Parse reactions
         Map<String, List<String>>? reactions;
         if (msg['reactions'] != null && msg['reactions'] is Map) {
           reactions = Map<String, List<String>>.from(
@@ -585,7 +675,6 @@ class SupabaseService {
         throw Exception('Você precisa estar logado.');
       }
 
-      // Atualizar status de arquivado no banco de dados
       await _client
           .from('messages')
           .update({
@@ -604,8 +693,6 @@ class SupabaseService {
       final user = currentUser;
       if (user == null) return [];
 
-      // Buscar mensagens arquivadas do usuário (em conversas onde ele participa)
-      // Primeiro, buscar IDs das conversas do usuário
       final userConversations = await _client
           .from('conversation_participants')
           .select('conversation_id')
@@ -618,7 +705,6 @@ class SupabaseService {
           .map((conv) => conv['conversation_id'] as String)
           .toList();
 
-      // Buscar mensagens arquivadas nessas conversas
       final response = await _client
           .from('messages')
           .select('''
@@ -636,7 +722,6 @@ class SupabaseService {
             ? (msg['profiles'] as Map)['name'] ?? 'Usuário'
             : 'Usuário';
 
-        // Parse reactions
         Map<String, List<String>>? reactions;
         if (msg['reactions'] != null && msg['reactions'] is Map) {
           reactions = Map<String, List<String>>.from(
@@ -674,7 +759,6 @@ class SupabaseService {
     }
   }
 
-  // Buscar todos os usuários cadastrados (exceto o usuário atual)
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
     try {
       final user = currentUser;
@@ -689,12 +773,10 @@ class SupabaseService {
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Erro ao carregar usuários: $e');
-      // Em caso de erro, retornar lista vazia em vez de lançar exceção
       return [];
     }
   }
 
-  // Buscar usuários por nome ou email
   static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     try {
       final user = currentUser;
@@ -714,12 +796,10 @@ class SupabaseService {
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Erro ao buscar usuários: $e');
-      // Em caso de erro, retornar lista vazia em vez de lançar exceção
       return [];
     }
   }
 
-  // Buscar conversas do usuário atual
   static Future<List<Map<String, dynamic>>> getConversations() async {
     try {
       final user = currentUser;
@@ -730,7 +810,6 @@ class SupabaseService {
 
       print('🔍 Buscando conversas para usuário: ${user.id}');
 
-      // Buscar conversas usando JOIN
       final result = await _client
           .from('conversation_participants')
           .select('''
@@ -746,40 +825,43 @@ class SupabaseService {
         return [];
       }
 
-      // Transformar em formato esperado
       final conversations = <Map<String, dynamic>>[];
       
       for (final item in result) {
         final conv = item['conversations'];
         String conversationName = conv['name'] ?? 'Conversa';
         String? otherUserId;
+        String? avatarUrl;
+        bool isOnline = false;
         
-        // Para conversas diretas, SEMPRE buscar o outro participante
         if (conv['type'] == 'direct') {
           try {
             final otherParticipants = await _client
                 .from('conversation_participants')
-                .select('user_id, profiles!inner(name)')
+                .select('user_id, profiles!inner(name, avatar_url, is_online)')
                 .eq('conversation_id', conv['id'])
                 .neq('user_id', user.id)
                 .limit(1);
             
             if (otherParticipants.isNotEmpty) {
               otherUserId = otherParticipants[0]['user_id'];
-              // Usar o nome do outro participante se não houver nome na conversa
-              if (conv['name'] == null || conv['name'].isEmpty) {
-                conversationName = otherParticipants[0]['profiles']['name'];
-              }
+              final profile = otherParticipants[0]['profiles'];
+              avatarUrl = profile['avatar_url'];
+              isOnline = profile['is_online'] ?? false;
+              
+              conversationName = profile['name'] ?? 'Usuário';
               print('👤 Outro usuário: $otherUserId - $conversationName');
+              print('🖼️ Avatar URL: $avatarUrl');
+              print('🟢 Online: $isOnline');
             }
           } catch (e) {
             print('❌ Erro ao buscar nome do participante: $e');
           }
         }
         
-        // Buscar última mensagem
         String lastMessage = 'Nova conversa';
         String lastMessageTime = _formatTime(DateTime.parse(conv['created_at']));
+        DateTime? lastMessageDate;
         
         try {
           final messages = await _client
@@ -791,23 +873,76 @@ class SupabaseService {
           
           if (messages.isNotEmpty) {
             lastMessage = messages[0]['content'] ?? 'Nova conversa';
-            lastMessageTime = _formatTime(DateTime.parse(messages[0]['created_at']));
+            lastMessageDate = DateTime.parse(messages[0]['created_at']);
+            lastMessageTime = _formatTime(lastMessageDate);
+          } else {
+            lastMessageDate = DateTime.parse(conv['created_at']);
           }
         } catch (e) {
           print('Erro ao buscar última mensagem: $e');
+          lastMessageDate = DateTime.parse(conv['created_at']);
+        }
+        
+        int unreadCount = 0;
+        try {
+          final result = await _client.rpc('count_unread_messages', params: {
+            'p_conversation_id': conv['id'],
+            'p_user_id': user.id,
+          });
+          unreadCount = result ?? 0;
+          print('📬 Mensagens não lidas: $unreadCount');
+        } catch (e) {
+          print('⚠️ Erro ao contar mensagens não lidas (função pode não existir): $e');
+          try {
+            final messages = await _client
+                .from('messages')
+                .select('id')
+                .eq('conversation_id', conv['id'])
+                .neq('sender_id', user.id);
+            
+            int count = 0;
+            for (final msg in messages) {
+              final reads = await _client
+                  .from('message_reads')
+                  .select('id')
+                  .eq('message_id', msg['id'])
+                  .eq('user_id', user.id)
+                  .maybeSingle();
+              
+              if (reads == null) count++;
+            }
+            unreadCount = count;
+          } catch (e2) {
+            print('⚠️ Erro no fallback de contagem: $e2');
+          }
         }
         
         conversations.add({
           'id': conv['id'],
           'name': conversationName,
+          'type': conv['type'] ?? 'direct',
           'lastMessage': lastMessage,
           'time': lastMessageTime,
-          'avatarUrl': null,
-          'hasUnread': false,
-          'unreadCount': 0,
-          'otherUserId': otherUserId, // Adicionar ID do outro usuário
+          'lastMessageDate': lastMessageDate, // Adicionar data para ordenação
+          'avatarUrl': avatarUrl,
+          'isOnline': isOnline,
+          'hasUnread': unreadCount > 0,
+          'unreadCount': unreadCount,
+          'otherUserId': otherUserId,
         });
       }
+      
+      // Ordenar conversas por data da última mensagem (mais recente primeiro)
+      conversations.sort((a, b) {
+        final dateA = a['lastMessageDate'] as DateTime?;
+        final dateB = b['lastMessageDate'] as DateTime?;
+        
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        
+        return dateB.compareTo(dateA); // Ordem decrescente (mais recente primeiro)
+      });
       
       return conversations;
     } catch (e) {
@@ -1104,6 +1239,434 @@ class SupabaseService {
     } catch (e) {
       print('Erro ao obter indicadores de digitação: $e');
       return Stream.value({});
+    }
+  }
+
+  // Criar grupo
+  static Future<String> createGroup(String name, List<String> participantIds, {bool isPublic = false}) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        throw Exception('Você precisa estar logado para criar grupos.');
+      }
+
+      // Criar conversa do tipo grupo
+      final conversationResponse = await _client
+          .from('conversations')
+          .insert({
+            'name': name,
+            'type': 'group',
+            'is_public': isPublic,
+            'created_by': user.id,
+          })
+          .select()
+          .single();
+
+      final conversationId = conversationResponse['id'];
+
+      // Adicionar criador como participante
+      await _client.from('conversation_participants').insert({
+        'conversation_id': conversationId,
+        'user_id': user.id,
+        'joined_at': DateTime.now().toIso8601String(),
+      });
+
+      // Adicionar outros participantes
+      for (final participantId in participantIds) {
+        if (participantId != user.id) {
+          await _client.from('conversation_participants').insert({
+            'conversation_id': conversationId,
+            'user_id': participantId,
+            'joined_at': DateTime.now().toIso8601String(),
+          });
+        }
+      }
+
+      print('✅ Grupo criado: $conversationId');
+      return conversationId;
+    } catch (e) {
+      print('❌ Erro ao criar grupo: $e');
+      throw Exception('Erro ao criar grupo: ${e.toString()}');
+    }
+  }
+
+  // Buscar grupos públicos
+  static Future<List<Map<String, dynamic>>> searchPublicGroups(String query) async {
+    try {
+      final user = currentUser;
+      if (user == null) return [];
+
+      var queryBuilder = _client
+          .from('conversations')
+          .select('id, name, type, is_public, created_at')
+          .eq('type', 'group')
+          .eq('is_public', true);
+
+      if (query.isNotEmpty) {
+        queryBuilder = queryBuilder.ilike('name', '%$query%');
+      }
+
+      final groups = await queryBuilder.order('created_at', ascending: false).limit(20);
+
+      return List<Map<String, dynamic>>.from(groups);
+    } catch (e) {
+      print('Erro ao buscar grupos públicos: $e');
+      return [];
+    }
+  }
+
+  // Entrar em um grupo público
+  static Future<void> joinGroup(String conversationId) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        throw Exception('Você precisa estar logado para entrar em grupos.');
+      }
+
+      // Verificar se o grupo é público
+      final group = await _client
+          .from('conversations')
+          .select('is_public, type')
+          .eq('id', conversationId)
+          .single();
+
+      if (group['type'] != 'group') {
+        throw Exception('Esta não é uma conversa de grupo.');
+      }
+
+      if (group['is_public'] != true) {
+        throw Exception('Este grupo é privado. Você precisa de um convite.');
+      }
+
+      // Verificar se já é participante
+      final existing = await _client
+          .from('conversation_participants')
+          .select('id')
+          .eq('conversation_id', conversationId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (existing != null) {
+        throw Exception('Você já é membro deste grupo.');
+      }
+
+      // Adicionar como participante
+      await _client.from('conversation_participants').insert({
+        'conversation_id': conversationId,
+        'user_id': user.id,
+        'joined_at': DateTime.now().toIso8601String(),
+      });
+
+      print('✅ Entrou no grupo: $conversationId');
+    } catch (e) {
+      print('❌ Erro ao entrar no grupo: $e');
+      throw Exception('Erro ao entrar no grupo: ${e.toString()}');
+    }
+  }
+
+  // Adicionar participantes a um grupo
+  static Future<void> addParticipantsToGroup(String conversationId, List<String> participantIds) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        throw Exception('Você precisa estar logado.');
+      }
+
+      // Verificar se é admin/criador do grupo
+      final group = await _client
+          .from('conversations')
+          .select('created_by, type')
+          .eq('id', conversationId)
+          .single();
+
+      if (group['type'] != 'group') {
+        throw Exception('Esta não é uma conversa de grupo.');
+      }
+
+      if (group['created_by'] != user.id) {
+        throw Exception('Apenas o criador do grupo pode adicionar participantes.');
+      }
+
+      // Adicionar participantes
+      for (final participantId in participantIds) {
+        final existing = await _client
+            .from('conversation_participants')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .eq('user_id', participantId)
+            .maybeSingle();
+
+        if (existing == null) {
+          await _client.from('conversation_participants').insert({
+            'conversation_id': conversationId,
+            'user_id': participantId,
+            'joined_at': DateTime.now().toIso8601String(),
+          });
+        }
+      }
+
+      print('✅ Participantes adicionados ao grupo');
+    } catch (e) {
+      print('❌ Erro ao adicionar participantes: $e');
+      throw Exception('Erro ao adicionar participantes: ${e.toString()}');
+    }
+  }
+
+  // Enviar mensagem para grupo
+  static Future<void> sendGroupMessage(String conversationId, String content, {String? imageUrl, String? fileUrl}) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        throw Exception('Você precisa estar logado para enviar mensagens.');
+      }
+
+      // Verificar se é participante do grupo
+      final participant = await _client
+          .from('conversation_participants')
+          .select('id')
+          .eq('conversation_id', conversationId)
+          .eq('user_id', user.id)
+          .filter('left_at', 'is', null)
+          .maybeSingle();
+
+      if (participant == null) {
+        throw Exception('Você não é membro deste grupo.');
+      }
+
+      // Determinar tipo de mensagem
+      String messageType = 'text';
+      String? fileUrlToUse;
+      if (imageUrl != null) {
+        messageType = 'image';
+        fileUrlToUse = imageUrl;
+      } else if (fileUrl != null) {
+        messageType = 'file';
+        fileUrlToUse = fileUrl;
+      }
+
+      // Inserir mensagem no banco
+      await _client.from('messages').insert({
+        'conversation_id': conversationId,
+        'sender_id': user.id,
+        'content': content.isEmpty ? (imageUrl != null ? '📷 Imagem' : fileUrl != null ? '📎 Arquivo' : '') : content,
+        'message_type': messageType,
+        'file_url': fileUrlToUse,
+      });
+
+      print('✅ Mensagem enviada para o grupo');
+    } catch (e) {
+      print('❌ Erro ao enviar mensagem para grupo: $e');
+      throw Exception('Erro ao enviar mensagem: ${e.toString()}');
+    }
+  }
+
+  // Obter stream de mensagens de grupo
+  static Stream<List<Message>> getGroupMessagesStream(String conversationId) async* {
+    final user = currentUser;
+    if (user == null) {
+      yield [];
+      return;
+    }
+
+    try {
+      final profiles = <String, String>{};
+
+      List<Message> processMessages(List<dynamic> data) {
+        final messages = <Message>[];
+
+        for (final msg in data) {
+          final senderId = msg['sender_id'];
+
+          Map<String, List<String>>? reactions;
+          if (msg['reactions'] != null && msg['reactions'] is Map) {
+            reactions = Map<String, List<String>>.from(
+              (msg['reactions'] as Map).map(
+                (key, value) => MapEntry(
+                  key.toString(),
+                  List<String>.from(value ?? []),
+                ),
+              ),
+            );
+          }
+
+          final createdAtUtc = DateTime.parse(msg['created_at']);
+          final createdAt = createdAtUtc.isUtc ? createdAtUtc.toLocal() : createdAtUtc;
+
+          DateTime? editedAt;
+          if (msg['edited_at'] != null) {
+            final editedAtUtc = DateTime.parse(msg['edited_at']);
+            editedAt = editedAtUtc.isUtc ? editedAtUtc.toLocal() : editedAtUtc;
+          }
+
+          messages.add(Message(
+            id: msg['id'],
+            content: msg['content'] ?? '',
+            senderId: senderId,
+            senderName: profiles[senderId] ?? 'Usuário',
+            createdAt: createdAt,
+            imageUrl: msg['file_url'],
+            isFavorite: msg['is_favorite'] ?? false,
+            isArchived: msg['is_archived'] ?? false,
+            isDeleted: msg['is_deleted'] ?? false,
+            isEdited: msg['is_edited'] ?? false,
+            editedAt: editedAt,
+            reactions: reactions,
+          ));
+        }
+        return messages;
+      }
+
+      // Carregar mensagens existentes
+      try {
+        final initialMessages = await _client
+            .from('messages')
+            .select()
+            .eq('conversation_id', conversationId)
+            .order('created_at', ascending: true);
+
+        final senderIds = initialMessages.map((m) => m['sender_id'] as String).toSet().toList();
+        if (senderIds.isNotEmpty) {
+          final profilesData = await _client
+              .from('profiles')
+              .select('id, name')
+              .inFilter('id', senderIds);
+
+          for (final profile in profilesData) {
+            profiles[profile['id']] = profile['name'] ?? 'Usuário';
+          }
+        }
+
+        final messages = processMessages(initialMessages);
+        yield messages;
+      } catch (e) {
+        print('❌ Erro ao carregar mensagens iniciais: $e');
+      }
+
+      // Escutar novas mensagens via stream
+      await for (final data in _client
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .eq('conversation_id', conversationId)
+          .order('created_at', ascending: true)) {
+        final senderIds = data.map((m) => m['sender_id'] as String).toSet().toList();
+        final newSenderIds = senderIds.where((id) => !profiles.containsKey(id)).toList();
+
+        if (newSenderIds.isNotEmpty) {
+          try {
+            final profilesData = await _client
+                .from('profiles')
+                .select('id, name')
+                .inFilter('id', newSenderIds);
+
+            for (final profile in profilesData) {
+              profiles[profile['id']] = profile['name'] ?? 'Usuário';
+            }
+          } catch (e) {
+            print('❌ Erro ao buscar perfis: $e');
+            for (final id in newSenderIds) {
+              profiles[id] = 'Usuário';
+            }
+          }
+        }
+
+        final messages = processMessages(data);
+        yield messages;
+      }
+    } catch (e) {
+      print('❌ Erro no stream de mensagens do grupo: $e');
+      yield [];
+    }
+  }
+
+  // Marcar mensagens como lidas
+  static Future<void> markMessagesAsRead(String conversationId) async {
+    try {
+      final user = currentUser;
+      if (user == null) return;
+
+      print('📖 Marcando mensagens como lidas na conversa: $conversationId');
+
+      // Tentar usar a função do banco de dados
+      try {
+        await _client.rpc('mark_messages_as_read', params: {
+          'p_conversation_id': conversationId,
+          'p_user_id': user.id,
+        });
+        print('✅ Mensagens marcadas como lidas via função RPC');
+      } catch (e) {
+        print('⚠️ Função RPC não disponível, usando fallback: $e');
+        
+        // Fallback: marcar manualmente
+        final messages = await _client
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .neq('sender_id', user.id);
+
+        for (final msg in messages) {
+          try {
+            await _client.from('message_reads').insert({
+              'message_id': msg['id'],
+              'user_id': user.id,
+              'read_at': DateTime.now().toIso8601String(),
+            });
+          } catch (e) {
+            // Ignorar erro se já existe (conflito de unique constraint)
+            if (!e.toString().contains('duplicate') && !e.toString().contains('unique')) {
+              print('⚠️ Erro ao marcar mensagem como lida: $e');
+            }
+          }
+        }
+        print('✅ Mensagens marcadas como lidas via fallback');
+      }
+    } catch (e) {
+      print('❌ Erro ao marcar mensagens como lidas: $e');
+    }
+  }
+
+  // Verificar se uma mensagem foi lida
+  static Future<bool> isMessageRead(String messageId, String userId) async {
+    try {
+      final read = await _client
+          .from('message_reads')
+          .select('id')
+          .eq('message_id', messageId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      return read != null;
+    } catch (e) {
+      print('❌ Erro ao verificar leitura: $e');
+      return false;
+    }
+  }
+
+  // Obter lista de usuários que leram uma mensagem
+  static Future<List<String>> getMessageReaders(String messageId) async {
+    try {
+      final reads = await _client
+          .from('message_reads')
+          .select('user_id')
+          .eq('message_id', messageId);
+
+      return reads.map((r) => r['user_id'] as String).toList();
+    } catch (e) {
+      print('❌ Erro ao buscar leitores: $e');
+      return [];
+    }
+  }
+
+  // Stream de status de leitura de uma mensagem
+  static Stream<List<String>> getMessageReadersStream(String messageId) {
+    try {
+      return _client
+          .from('message_reads')
+          .stream(primaryKey: ['id'])
+          .eq('message_id', messageId)
+          .map((data) => data.map((r) => r['user_id'] as String).toList());
+    } catch (e) {
+      print('❌ Erro no stream de leitores: $e');
+      return Stream.value([]);
     }
   }
 }

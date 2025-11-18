@@ -11,6 +11,7 @@ import 'screens/favorites_screen.dart';
 import 'screens/archived_screen.dart';
 import 'screens/help_screen.dart';
 import 'screens/about_screen.dart';
+import 'screens/new_group_screen.dart';
 import 'services/supabase_service.dart';
 
 class AppRoutes {
@@ -18,6 +19,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String conversations = '/conversations';
   static const String newConversation = '/new-conversation';
+  static const String newGroup = '/new-group';
   static const String home = '/home';
   static const String profile = '/profile';
   static const String settings = '/settings';
@@ -36,12 +38,16 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ConversationsScreen());
       case newConversation:
         return MaterialPageRoute(builder: (_) => const NewConversationScreen());
+      case newGroup:
+        return MaterialPageRoute(builder: (_) => const NewGroupScreen());
       case home:
         final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
           builder: (_) => HomeScreen(
             userId: args?['userId'] as String?,
             chatName: args?['chatName'] as String?,
+            conversationId: args?['conversationId'] as String?,
+            isGroup: args?['isGroup'] as bool? ?? false,
           ),
           settings: settings,
         );

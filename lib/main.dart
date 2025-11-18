@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'routes.dart';
 import 'config/supabase_config.dart';
+import 'services/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Usar configuração centralizada
   SupabaseConfig.printConfig();
   
   try {
-    // Limpar qualquer instância anterior
     try {
       await Supabase.instance.dispose();
     } catch (e) {
-      // Ignorar erro se não houver instância
     }
     
     await Supabase.initialize(
@@ -24,11 +23,17 @@ void main() async {
     );
     print('✅ Supabase inicializado com sucesso!');
     
-    // Testar conexão
     final client = Supabase.instance.client;
     print('🔍 Testando conexão...');
     final response = await client.from('profiles').select('count').limit(1);
     print('✅ Conexão testada com sucesso!');
+    
+    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      if (result != ConnectivityResult.none) {
+        print('🌐 Conexão restaurada, sincronizando mensagens pendentes...');
+        SupabaseService.syncPendingMessages();
+      }
+    });
     
   } catch (e) {
     print('❌ Erro ao inicializar Supabase: $e');
@@ -45,7 +50,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'App Mensagens',
+      title: 'Connect',
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,

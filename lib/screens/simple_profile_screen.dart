@@ -28,16 +28,19 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
     try {
       final profile = await SupabaseService.getCurrentUserProfile();
       if (profile != null) {
+        print('📸 Avatar URL carregada: ${profile.avatarUrl}');
         setState(() {
           _nameController.text = profile.name;
           _avatarUrl = profile.avatarUrl;
         });
+        print('✅ Perfil carregado. Avatar URL: $_avatarUrl');
       } else {
         final currentUser = SupabaseService.currentUser;
         _nameController.text = currentUser?.userMetadata?['name'] ?? 'Usuário';
+        print('⚠️ Perfil não encontrado');
       }
     } catch (e) {
-      print('Erro ao carregar perfil: $e');
+      print('❌ Erro ao carregar perfil: $e');
       final currentUser = SupabaseService.currentUser;
       _nameController.text = currentUser?.userMetadata?['name'] ?? 'Usuário';
     }
@@ -148,15 +151,19 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
 
     try {
       final fileName = 'avatar-${DateTime.now().millisecondsSinceEpoch}.jpg';
+      print('📤 Fazendo upload do avatar: $fileName');
       final avatarUrl = await SupabaseService.uploadFile(filePath, fileName);
+      print('✅ Upload concluído. URL recebida: $avatarUrl');
       
       setState(() {
         _avatarUrl = avatarUrl;
         _isUploadingAvatar = false;
       });
+      print('🔄 Estado atualizado. Avatar URL: $_avatarUrl');
 
       // Atualizar perfil com novo avatar
       await SupabaseService.updateProfile(avatarUrl: avatarUrl);
+      print('✅ Perfil atualizado no banco de dados');
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -165,6 +172,7 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
         ),
       );
     } catch (e) {
+      print('❌ Erro ao fazer upload: $e');
       setState(() {
         _isUploadingAvatar = false;
       });
@@ -358,13 +366,30 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
                             ),
                           ],
                         ),
-                        child: _avatarUrl != null
+                        child: _avatarUrl != null && _avatarUrl!.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(50),
                                 child: Image.network(
                                   _avatarUrl!,
                                   fit: BoxFit.cover,
+                                  width: 100,
+                                  height: 100,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(
+                                      child: CircularProgressIndicator(
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded /
+                                                loadingProgress.expectedTotalBytes!
+                                            : null,
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                        strokeWidth: 2,
+                                      ),
+                                    );
+                                  },
                                   errorBuilder: (context, error, stackTrace) {
+                                    print('❌ Erro ao carregar avatar: $error');
+                                    print('URL: $_avatarUrl');
                                     return Center(
                                       child: Text(
                                         userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
@@ -489,37 +514,6 @@ class _SimpleProfileScreenState extends State<SimpleProfileScreen> {
                         _isEditing = true;
                       });
                     },
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildProfileOption(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notificações',
-                    subtitle: 'Gerenciar notificações',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Configurações de notificação em desenvolvimento'),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildProfileOption(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Ajuda',
-                    subtitle: 'Central de ajuda e suporte',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.help),
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _buildProfileOption(
-                    icon: Icons.info_outline_rounded,
-                    title: 'Sobre',
-                    subtitle: 'Informações do aplicativo',
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.about),
                   ),
                 ],
               ),

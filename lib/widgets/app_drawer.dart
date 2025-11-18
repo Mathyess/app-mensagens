@@ -79,10 +79,10 @@ class _AppDrawerState extends State<AppDrawer> {
                         child: CircleAvatar(
                           radius: 36,
                           backgroundColor: Colors.white,
-                          backgroundImage: avatarUrl != null
-                              ? NetworkImage(avatarUrl)
+                          backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
+                              ? NetworkImage(avatarUrl!)
                               : null,
-                          child: avatarUrl == null
+                          child: avatarUrl == null || avatarUrl!.isEmpty
                               ? Icon(
                                   Icons.person,
                                   size: 40,

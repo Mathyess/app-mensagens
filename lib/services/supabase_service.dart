@@ -46,31 +46,42 @@ class SupabaseService {
     return 'Ocorreu um erro. Tente novamente.';
   }
 
-  static Future<AuthResponse> signUp(String email, String password, String name) async {
+  static Future<AuthResponse> signUp(
+      String email, String password, String name) async {
     try {
       final response = await _client.auth.signUp(
         email: email,
         password: password,
       );
 
-      if (response.user != null && response.session == null) {
+      Future<void> saveProfile() async {
+        final user = response.user;
+        if (user == null) return;
+
+        final profileData = {
+          'id': user.id,
+          'name': name,
+          'email': user.email,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
         try {
-          await _client.from('profiles').insert({
-            'id': response.user!.id,
-            'name': name,
-          });
+          await _client
+              .from('profiles')
+              .upsert(profileData, onConflict: 'id', ignoreDuplicates: false);
         } catch (e) {
-          print('Perfil já existe ou erro ao criar: $e');
+          print('Erro ao salvar perfil após signup: $e');
+          rethrow;
         }
-        
+      }
+
+      if (response.user != null && response.session == null) {
+        await saveProfile();
         throw Exception('CONFIRM_EMAIL');
       }
 
       if (response.user != null) {
-        await _client.from('profiles').insert({
-          'id': response.user!.id,
-          'name': name,
-        });
+        await saveProfile();
       }
 
       return response;
@@ -115,19 +126,25 @@ class SupabaseService {
             .eq('id', user.id)
             .single();
 
+        final String? userCreatedAtRaw = user.createdAt;
+        final userCreatedAt =
+            userCreatedAtRaw ?? DateTime.now().toIso8601String();
         return AppUser.fromJson({
           'id': profile['id'],
           'email': profile['email'] ?? user.email ?? '',
           'name': profile['name'] ?? (user.userMetadata?['name'] ?? 'Usuário'),
           'avatar_url': profile['avatar_url'],
-          'created_at': profile['created_at'] ?? user.createdAt ?? DateTime.now().toIso8601String(),
+          'created_at': profile['created_at'] ?? userCreatedAt,
         });
       } catch (e) {
+        final String? userCreatedAtRaw = user.createdAt;
+        final userCreatedAt =
+            userCreatedAtRaw ?? DateTime.now().toIso8601String();
         return AppUser.fromJson({
           'id': user.id,
           'email': user.email ?? '',
           'name': user.userMetadata?['name'] ?? 'Usuário',
-          'created_at': user.createdAt ?? DateTime.now().toIso8601String(),
+          'created_at': userCreatedAt,
         });
       }
     } catch (e) {

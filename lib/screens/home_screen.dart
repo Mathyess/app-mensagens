@@ -5,7 +5,6 @@ import '../services/supabase_service.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
-import '../widgets/app_drawer.dart';
 import '../routes.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,7 +25,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   String? _cachedUserId;
   String? _cachedConversationId;
@@ -37,14 +36,33 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Message> _pendingMessages = [];
   List<Message> _serverMessages = [];
   String? _otherUserAvatarUrl;
-  bool _isLoadingAvatar = true;
+  bool _isAppInForeground = true;
+  bool _isScrollAtBottom = true;
+  bool _pendingReadReceipt = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_handleScrollPositionChanged);
+  }
 
   @override
   void dispose() {
     _messagesSubscription?.cancel();
     _messagesController.close();
+    _scrollController.removeListener(_handleScrollPositionChanged);
     _scrollController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isAppInForeground = state == AppLifecycleState.resumed;
+    if (_isAppInForeground) {
+      _scheduleMarkMessagesAsRead();
+    }
   }
 
   @override
@@ -55,14 +73,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (widget.conversationId != null) {
       _cachedConversationId = widget.conversationId;
       _isGroup = widget.isGroup;
-      _markMessagesAsRead();
+      _scheduleMarkMessagesAsRead();
       return;
     }
 
     if (args?['conversationId'] != null) {
       _cachedConversationId = args?['conversationId'] as String;
       _isGroup = args?['isGroup'] as bool? ?? false;
-      _markMessagesAsRead();
+      _scheduleMarkMessagesAsRead();
       return;
     }
 
@@ -91,23 +109,66 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _otherUserAvatarUrl = profile['avatar_url'];
-          _isLoadingAvatar = false;
         });
       }
     } catch (e) {
       print('Erro ao carregar avatar: $e');
       if (mounted) {
         setState(() {
-          _isLoadingAvatar = false;
         });
       }
     }
   }
 
-  Future<void> _markMessagesAsRead() async {
-    if (_cachedConversationId != null) {
-      await SupabaseService.markMessagesAsRead(_cachedConversationId!);
+  void _handleScrollPositionChanged() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final isNearBottom = (position.maxScrollExtent - position.pixels) <= 48;
+    if (_isScrollAtBottom != isNearBottom) {
+      setState(() {
+        _isScrollAtBottom = isNearBottom;
+      });
     }
+
+    if (isNearBottom) {
+      _scheduleMarkMessagesAsRead();
+    }
+  }
+
+  void _scheduleMarkMessagesAsRead() {
+    if (_cachedConversationId == null) return;
+    _pendingReadReceipt = true;
+    unawaited(_tryMarkMessagesAsRead());
+  }
+
+  Future<void> _tryMarkMessagesAsRead() async {
+    if (!_pendingReadReceipt || _cachedConversationId == null) return;
+    if (!_isScreenCurrentlyVisible || !_isScrollAtBottom) return;
+
+    final currentUser = SupabaseService.currentUser;
+    if (currentUser == null) return;
+
+    final hasUnreadFromOthers = _serverMessages.any(
+      (message) => message.senderId != currentUser.id,
+    );
+
+    if (!hasUnreadFromOthers) {
+      _pendingReadReceipt = false;
+      return;
+    }
+
+    _pendingReadReceipt = false;
+    try {
+      await SupabaseService.markMessagesAsRead(_cachedConversationId!);
+    } catch (e) {
+      print('Erro ao marcar mensagens como lidas: $e');
+    }
+  }
+
+  bool get _isScreenCurrentlyVisible {
+    if (!mounted) return false;
+    final route = ModalRoute.of(context);
+    return route?.isCurrent == true && _isAppInForeground;
   }
 
   void _scrollToBottom() {
@@ -140,39 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
     
     allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     _messagesController.add(allMessages);
-  }
-
-  Future<void> _handleLogout() async {
-    try {
-      await SupabaseService.signOut();
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Erro ao sair: ${e.toString().replaceFirst('Exception: ', '')}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _handleSendMessage(String content) async {
@@ -254,8 +282,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = SupabaseService.currentUser;
-    final userName = currentUser?.userMetadata?['name'] ?? 'Usuário';
-
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
@@ -403,6 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           });
 
                           _emitCombinedMessages();
+                          _scheduleMarkMessagesAsRead();
                         },
                         onError: (error) {
                           if (!_messagesController.isClosed) {
@@ -457,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       
                       _messagesSubscription = SupabaseService.getMessagesStream(userId).listen(
-                        (serverMessages) async {
+                        (serverMessages) {
                           if (!mounted) return;
                           
                           _serverMessages = serverMessages;
@@ -474,10 +501,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           _emitCombinedMessages();
                           
-                          // Marcar mensagens como lidas quando receber novas mensagens
-                          if (_cachedConversationId != null) {
-                            await SupabaseService.markMessagesAsRead(_cachedConversationId!);
-                          }
+                          // Solicitar atualização do status de leitura apenas quando atender aos critérios
+                          _scheduleMarkMessagesAsRead();
                         },
                         onError: (error) {
                           if (!_messagesController.isClosed) {
@@ -720,6 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
+            if (_typingUsers.containsValue(true)) _buildTypingIndicator(),
             MessageInput(
               onSendMessage: _handleSendMessage,
               recipientId: _getUserId(),
@@ -727,6 +753,59 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    final typingUserIds = _typingUsers.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList();
+
+    if (typingUserIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<Map<String, String>>(
+      stream: _getTypingUsersNames(typingUserIds),
+      builder: (context, snapshot) {
+        final names = snapshot.data?.values.toList() ?? [];
+        String message;
+        if (names.isEmpty) {
+          message = 'Digitando...';
+        } else if (names.length == 1) {
+          message = '${names.first} está digitando...';
+        } else {
+          message = '${names.join(', ')} estão digitando...';
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontStyle: FontStyle.italic,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -820,6 +899,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _cachedConversationId = conversationId;
       _listenToTypingIndicators(conversationId);
+      _scheduleMarkMessagesAsRead();
     } catch (e) {
       print('Erro ao obter conversation ID: $e');
     }

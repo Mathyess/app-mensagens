@@ -46,7 +46,8 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao carregar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(
+                'Erro ao carregar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -66,7 +67,8 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao buscar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(
+                'Erro ao buscar usuários: ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -74,14 +76,14 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
     }
   }
 
-
   void _startConversation(Map<String, dynamic> user) {
-    print('🚀 Iniciando conversa com usuário: $user');
-    print('🔑 User ID: ${user['id']}');
-    print('👤 User Name: ${user['name']}');
-    
+    final chatName = (user['name'] ?? user['email'] ?? 'Usuário').toString();
     final userId = user['id']?.toString() ?? '';
-    
+    final userEmail = (user['email'] ?? '').toString();
+
+    print(
+        '🚀 Iniciando conversa com usuário: id=$userId name=$chatName email=$userEmail');
+
     if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -91,12 +93,12 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
       );
       return;
     }
-    
+
     Navigator.pushNamed(
       context,
       AppRoutes.home,
       arguments: {
-        'chatName': user['name'],
+        'chatName': chatName,
         'userId': userId,
       },
     );
@@ -136,14 +138,15 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         'email': email,
         'avatar': null,
       };
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Usuário não encontrado. Iniciando conversa com $email'),
+          content:
+              Text('Usuário não encontrado. Iniciando conversa com $email'),
           backgroundColor: Colors.orange,
         ),
       );
-      
+
       _startConversation(newUser);
     }
 
@@ -156,8 +159,9 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
 
   Map<String, dynamic>? _findUserByEmail(String email) {
     try {
-      return _users.firstWhere((user) => 
-        (user['email'] as String).toLowerCase() == email.toLowerCase());
+      return _users.firstWhere((user) =>
+          ((user['email'] ?? '').toString()).toLowerCase() ==
+          email.toLowerCase());
     } catch (e) {
       return null;
     }
@@ -165,7 +169,6 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -183,8 +186,8 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         title: Text(
           'Nova Conversa',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         actions: [
           IconButton(
@@ -226,16 +229,18 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'Adicionar por Email',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: const Color(0xFF6B7280),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: const Color(0xFF6B7280),
+                                  ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Digite o email do usuário acima',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF9CA3AF),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: const Color(0xFF9CA3AF),
+                                  ),
                         ),
                       ],
                     ),
@@ -243,7 +248,8 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
                 : _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
                         ),
                       )
                     : _users.isEmpty
@@ -259,16 +265,22 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
                                 const SizedBox(height: 16),
                                 Text(
                                   'Nenhum usuário encontrado',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: const Color(0xFF6B7280),
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: const Color(0xFF6B7280),
+                                      ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Tente buscar por nome ou email',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: const Color(0xFF9CA3AF),
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: const Color(0xFF9CA3AF),
+                                      ),
                                 ),
                               ],
                             ),
@@ -298,42 +310,48 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Stack(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getColorFromName(user['name']),
-                    _getColorFromName(user['name']).withOpacity(0.7),
-                  ],
+            Builder(builder: (context) {
+              final name =
+                  (user['name'] ?? user['email'] ?? 'Usuário').toString();
+              final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+              return Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _getColorFromName(name),
+                      _getColorFromName(name).withOpacity(0.7),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
                 ),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-              child: Text(
-                (user['name'] as String)[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
-              ),
-            ),
+              );
+            }),
           ],
         ),
         title: Text(
-          user['name'] as String,
+          (user['name'] ?? user['email'] ?? 'Usuário').toString(),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         subtitle: Text(
-          user['email'] as String,
+          (user['email'] ?? '').toString(),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF6B7280),
-          ),
+                color: const Color(0xFF6B7280),
+              ),
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -472,7 +490,7 @@ class _NewConversationScreenState extends State<NewConversationScreen> {
       const Color(0xFFEC4899),
       const Color(0xFF8B5CF6),
     ];
-    
+
     final hash = name.hashCode.abs();
     return colors[hash % colors.length];
   }

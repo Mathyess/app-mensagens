@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../widgets/conversation_tile.dart';
-import '../widgets/app_drawer.dart';
 import '../services/supabase_service.dart';
 import '../routes.dart';
 
@@ -604,13 +602,14 @@ class _ConversationsScreenState extends State<ConversationsScreen>
               ),
           ],
         ),
-        onTap: () {
+        onTap: () async {
           final conversationId = (conversation['id'] as String?) ?? '';
           final conversationType = conversation['type'] as String?;
           final isGroup = conversationType == 'group';
-          
+          Future<dynamic>? navigationFuture;
+
           if (isGroup) {
-            Navigator.pushNamed(
+            navigationFuture = Navigator.pushNamed(
               context,
               AppRoutes.home,
               arguments: {
@@ -623,7 +622,7 @@ class _ConversationsScreenState extends State<ConversationsScreen>
             final otherUserId = conversation['otherUserId'];
             
             if (otherUserId != null && otherUserId.toString().isNotEmpty) {
-              Navigator.pushNamed(
+              navigationFuture = Navigator.pushNamed(
                 context,
                 AppRoutes.home,
                 arguments: {
@@ -638,6 +637,13 @@ class _ConversationsScreenState extends State<ConversationsScreen>
                   backgroundColor: Colors.red,
                 ),
               );
+            }
+          }
+
+          if (navigationFuture != null) {
+            await navigationFuture;
+            if (mounted) {
+              await _loadConversations();
             }
           }
         },
